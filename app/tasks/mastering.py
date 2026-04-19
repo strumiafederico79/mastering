@@ -6,7 +6,7 @@ from app.core.config import settings
 from app.services.audio_io import load_audio_for_analysis
 from app.services.analyzer import analyze_audio
 from app.services.decision_engine import decide_mastering
-from app.services.mastering_chain import build_ffmpeg_filter_chain
+from app.services.mastering_chain import build_ffmpeg_filter_chain, build_safe_filter_chain
 from app.services.ffmpeg_tools import export_mp3, loudnorm_two_pass
 from app.services.job_store import read_job, write_job
 from app.services.learning import append_learning
