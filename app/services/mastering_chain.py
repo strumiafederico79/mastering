@@ -7,6 +7,7 @@ def build_ffmpeg_filter_chain(decision: dict):
     filters = []
     actions = []
     modules = decision.get("advanced_modules", {})
+    human_pass_strategy = decision.get("human_pass_strategy", "single_pass_balanced")
 
     if decision.get("tighten_low_end"):
         filters.append("highpass=f=25")
@@ -92,6 +93,8 @@ def build_ffmpeg_filter_chain(decision: dict):
     if modules.get("true_peak_limiter", True):
         filters.append("alimiter=limit=0.98:level=disabled")
         actions.append({"stage": "true_peak_limiter", "ceiling": decision.get("limiter_ceiling_dbtp", -1.0)})
+
+    actions.append({"stage": "human_strategy", "profile": human_pass_strategy})
 
     if int(settings.enable_free_plugin_hooks) == 1 and settings.ladspa_plugin_spec:
         spec = settings.ladspa_plugin_spec

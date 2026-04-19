@@ -73,6 +73,26 @@ def analyze_audio(y, sr):
     if onset_mean < 0.55:
         arrangement_tags.append("ataque_suave")
 
+    n_sections = 6
+    section_len = max(1, len(y) // n_sections)
+    section_rms_db = []
+    for i in range(n_sections):
+        start = i * section_len
+        end = len(y) if i == (n_sections - 1) else (i + 1) * section_len
+        chunk = y[start:end]
+        if len(chunk) == 0:
+            section_rms_db.append(-80.0)
+            continue
+        chunk_rms = float(np.sqrt(np.mean(np.square(chunk))) + 1e-8)
+        section_rms_db.append(float(20 * np.log10(chunk_rms + 1e-8)))
+
+    macro_dynamics = float(np.max(section_rms_db) - np.min(section_rms_db))
+    hook_lift_db = float(np.mean(section_rms_db[-2:]) - np.mean(section_rms_db[:2]))
+    if hook_lift_db > 1.3:
+        arrangement_tags.append("hook_con_lift")
+    if macro_dynamics > 5.0:
+        arrangement_tags.append("macro_dinamica_amplia")
+
     return {
         "low": low,
         "low_mid": low_mid,
@@ -92,6 +112,9 @@ def analyze_audio(y, sr):
         "chorus_density": chorus_density,
         "arrangement_focus": arrangement_focus,
         "arrangement_tags": arrangement_tags,
+        "section_rms_db": section_rms_db,
+        "macro_dynamics_db": macro_dynamics,
+        "hook_lift_db": hook_lift_db,
         "phase_corr": 1.0,
         "stereo_width": 0.0,
         "issues": issues,

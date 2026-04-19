@@ -21,6 +21,8 @@ const els = {
   issues: document.getElementById('issues'),
   advancedPlan: document.getElementById('advancedPlan'),
   arrangementTags: document.getElementById('arrangementTags'),
+  sectionMap: document.getElementById('sectionMap'),
+  humanNote: document.getElementById('humanNote'),
   actions: document.getElementById('actions'),
   analysisBox: document.getElementById('analysisBox'),
   decisionBox: document.getElementById('decisionBox'),
@@ -167,6 +169,37 @@ function renderArrangementTags(tags) {
     li.textContent = tag;
     els.arrangementTags.appendChild(li);
   });
+}
+
+function renderSectionMap(analysis) {
+  const sections = analysis?.section_rms_db || [];
+  if (!sections.length) {
+    els.sectionMap.textContent = 'Sin datos de secciones.';
+    return;
+  }
+  const min = Math.min(...sections);
+  const max = Math.max(...sections);
+  const rows = sections.map((db, i) => {
+    const norm = max === min ? 0.5 : (db - min) / (max - min);
+    const bars = '█'.repeat(Math.max(1, Math.round(norm * 14)));
+    return `S${i + 1}: ${bars.padEnd(14, '·')} ${db.toFixed(1)} dB`;
+  });
+  rows.push(`Macro dinámica: ${(analysis?.macro_dynamics_db || 0).toFixed(2)} dB`);
+  rows.push(`Hook lift: ${(analysis?.hook_lift_db || 0).toFixed(2)} dB`);
+  els.sectionMap.textContent = rows.join('\n');
+}
+
+function buildHumanNote(analysis, decision) {
+  const focus = analysis?.arrangement_focus || 'balanced_mix';
+  const tags = (analysis?.arrangement_tags || []).join(', ') || 'sin tags relevantes';
+  const strategy = decision?.human_pass_strategy || 'single_pass_balanced';
+  const target = decision?.target_lufs ?? '--';
+  const actions = (decision?.actions || []).slice(0, 4).join(' | ') || 'glue general';
+  return [
+    `Se detectó un arreglo ${focus} con tags: ${tags}.`,
+    `Aplicaremos estrategia ${strategy} con objetivo ${target} LUFS para mantener musicalidad.`,
+    `Prioridades de la pasada humana: ${actions}.`,
+  ].join(' ');
 }
 
 function setMeter(fillEl, valueEl, percent, label) {
@@ -341,6 +374,8 @@ async function pollJob(jobId, localStats) {
     renderActions(data.chain || {}, data.decision || {});
     renderAdvancedPlan(buildAdvancedPlan(data, localStats));
     renderArrangementTags(data.analysis?.arrangement_tags || data.decision?.arrangement_tags || []);
+    renderSectionMap(data.analysis || {});
+    els.humanNote.textContent = buildHumanNote(data.analysis || {}, data.decision || {});
 
     const confidence = estimateConfidence((data.issues || []).length, els.intensity.value);
     els.confidence.textContent = `${confidence}%`;

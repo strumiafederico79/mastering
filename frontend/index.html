@@ -132,20 +132,35 @@
           </div>
         </div>
 
-      <aside class="isotope-grid" id="isotopeGrid">
-        <section class="iso-card" data-group="health" data-score="3">
-          <header>
-            <h3>Issues Detectados</h3>
-            <span class="chip">Health</span>
-          </header>
-          <ul id="issues" class="pill-list"></ul>
-        </section>
+        <div class="meter-grid">
+          <div class="meter-card">
+            <span>Dynamic Range</span>
+            <div class="meter-track"><div id="meterDynamics" class="meter-fill"></div></div>
+            <small id="meterDynamicsValue">--</small>
+          </div>
+          <div class="meter-card">
+            <span>Stereo Width</span>
+            <div class="meter-track"><div id="meterStereo" class="meter-fill"></div></div>
+            <small id="meterStereoValue">--</small>
+          </div>
+          <div class="meter-card">
+            <span>Tonal Balance</span>
+            <div class="meter-track"><div id="meterTone" class="meter-fill"></div></div>
+            <small id="meterToneValue">--</small>
+          </div>
+        </div>
 
         <div class="section-title">Plan avanzado (estilo assistant)</div>
         <ul id="advancedPlan" class="list"></ul>
 
         <div class="section-title">Contexto musical detectado</div>
         <ul id="arrangementTags" class="pill-list"></ul>
+
+        <div class="section-title">Mapa de secciones (único)</div>
+        <pre id="sectionMap">Sin datos todavía.</pre>
+
+        <div class="section-title">Nota humana de mastering (única)</div>
+        <pre id="humanNote">Esperando análisis para redactar nota automática...</pre>
 
         <div class="section-title">Cadena aplicada por backend</div>
         <ul id="actions" class="list"></ul>

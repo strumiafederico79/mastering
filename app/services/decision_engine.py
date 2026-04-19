@@ -11,6 +11,8 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
     harmonic_ratio = float(analysis.get("harmonic_ratio", 1.0))
     arrangement_focus = str(analysis.get("arrangement_focus", "balanced_mix"))
     arrangement_tags = list(analysis.get("arrangement_tags", []))
+    macro_dynamics_db = float(analysis.get("macro_dynamics_db", 0.0))
+    hook_lift_db = float(analysis.get("hook_lift_db", 0.0))
     issues = list(analysis.get("issues", []))
 
     decision = {
@@ -48,6 +50,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         "genre": "general",
         "arrangement_focus": arrangement_focus,
         "arrangement_tags": arrangement_tags,
+        "human_pass_strategy": "single_pass_balanced",
         "advanced_modules": {
             "dynamic_eq": True,
             "multiband_glue": True,
@@ -118,6 +121,22 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         decision["use_deharsh"] = True
         decision["deharsh_db"] = max(decision["deharsh_db"], 1.8)
         decision["actions"].append("Control de aspereza en coros densos")
+
+    if macro_dynamics_db >= 4.2:
+        decision["human_pass_strategy"] = "macro_dynamic_guard"
+        decision["target_lufs"] = min(decision["target_lufs"], -10.8)
+        decision["actions"].append("Preservar macro-dinámica entre secciones (estilo humano)")
+    elif macro_dynamics_db <= 2.2:
+        decision["human_pass_strategy"] = "micro_impact_boost"
+        decision["boost_transients"] = True
+        decision["actions"].append("Reforzar micro-impacto por dinámica plana")
+
+    if hook_lift_db < 0.4:
+        decision["notes"].append("El hook no levanta suficiente frente al inicio; aplicar empuje sutil.")
+        decision["presence_boost_db"] = max(decision["presence_boost_db"], 0.7)
+    elif hook_lift_db > 2.2:
+        decision["notes"].append("Hook con gran lift natural; priorizar estabilidad y evitar over-limit.")
+        decision["target_lufs"] = min(decision["target_lufs"], -11.0)
 
     if decision["genre"] == "club_or_dark_mix":
         decision["target_lufs"] = -9.8
