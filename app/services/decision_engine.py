@@ -23,7 +23,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
 
     decision = {
         "preset_name": "Human Adaptive Master",
-        "target_lufs": -10.5,
+        "target_lufs": -12.0,
         "stem_mode": "full_mix",
         "delivery_target": "streaming",
         "tighten_low_end": False,
@@ -46,14 +46,14 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         "use_deharsh": False,
         "deharsh_db": 0.0,
         "deharsh_center_hz": 3500,
-        "multiband_drive": "medium",
+        "multiband_drive": "low",
         "limiter_ceiling_dbtp": -1.0,
         "vocal_presence_boost_db": 0.0,
         "vocal_presence_hz": 2200,
         "chorus_smooth_db": 0.0,
         "chorus_smooth_hz": 4800,
         "instrument_glue_db": 0.0,
-        "human_glue_stage": True,
+        "human_glue_stage": False,
         "cd_presence_stage": False,
         "cd_low_weight_stage": False,
         "ab_match_gain_db": float(analysis.get("ab_match_gain_db", 0.0)),
@@ -77,9 +77,9 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         "human_pass_strategy": "single_pass_balanced",
         "advanced_modules": {
             "dynamic_eq": True,
-            "multiband_glue": True,
+            "multiband_glue": False,
             "stereo_imager": True,
-            "harmonic_exciter": True,
+            "harmonic_exciter": False,
             "transient_shaper": True,
             "true_peak_limiter": True,
         },
@@ -163,7 +163,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         decision["target_lufs"] = min(decision["target_lufs"], -11.0)
 
     if decision["genre"] == "club_or_dark_mix":
-        decision["target_lufs"] = -9.8
+        decision["target_lufs"] = -10.8
         decision["multiband_drive"] = "high"
     elif decision["genre"] == "open_or_hifi":
         decision["target_lufs"] = -10.8
@@ -171,7 +171,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
 
     if mode == "assistant_punch":
         decision["preset_name"] = "Human Adaptive Master • Punch Bias"
-        decision["target_lufs"] = -9.5
+        decision["target_lufs"] = -10.5
         decision["multiband_drive"] = "high"
         decision["boost_transients"] = True
         decision["actions"].append("Modo punch: impacto y loudness competitivo")
@@ -223,39 +223,39 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
             decision["limiter_ceiling_dbtp"] = min(decision["limiter_ceiling_dbtp"], -1.0)
             decision["target_lufs"] = min(decision["target_lufs"], -10.0)
             decision["notes"].append(f"Guard de clipping por secciones activado ({len(clipping_sections)} secciones en riesgo).")
-    if features.get("ai_stem_mastering", True):
+    if features.get("ai_stem_mastering", False):
         decision["actions"].append("Stem mastering inteligente (modo rápido) activado")
-    if features.get("advanced_human_notes", True):
+    if features.get("advanced_human_notes", False):
         decision["notes"].append(
             f"Nota humana avanzada: sibilance={sibilance_index:.2f}, harshness={harshness_index:.2f}, resonance={resonance_hz}Hz."
         )
-    if features.get("dynamic_deesser", True) and sibilance_index > 0.22:
+    if features.get("dynamic_deesser", False) and sibilance_index > 0.22:
         decision["deesser_db"] = min(2.2, 0.8 + (sibilance_index * 2.0))
         decision["deesser_hz"] = 6800
         decision["actions"].append("Control dinámico de sibilancia/harshness por banda")
-    if features.get("phase_mono_fix", True):
+    if features.get("phase_mono_fix", False):
         decision["mono_low_end_fix"] = True
         decision["actions"].append("Auto-fix mono-compatibilidad en low-end")
-    if features.get("resonance_hunter", True):
+    if features.get("resonance_hunter", False):
         decision["resonance_cut_db"] = max(decision["resonance_cut_db"], 1.1)
         decision["actions"].append(f"Detector de resonancias: notch en {resonance_hz}Hz")
-    if features.get("dither_noise_shaping", True):
+    if features.get("dither_noise_shaping", False):
         decision["dither_profile"] = "triangular_hp"
         decision["actions"].append("Dither/noise shaping preparado para entrega final")
-    if features.get("vocal_priority_sidechain", True):
+    if features.get("vocal_priority_sidechain", False):
         decision["low_mid_cut_db"] = max(decision["low_mid_cut_db"], 1.6)
         decision["vocal_presence_boost_db"] = max(decision["vocal_presence_boost_db"], 1.0)
         decision["actions"].append("Vocal Priority con sidechain musical (aproximado)")
-    if features.get("smart_limiter_lookahead", True):
+    if features.get("smart_limiter_lookahead", False):
         decision["smart_limiter"] = True
         decision["limiter_lookahead_ms"] = min(8.0, max(2.0, 3.5 + (4.8 - min(4.8, crest))))
         decision["limiter_release_ms"] = 90.0 if macro_dynamics_db > 3.5 else 60.0
         decision["actions"].append("Limiter inteligente con lookahead adaptativo")
-    if features.get("bass_note_control", True):
+    if features.get("bass_note_control", False):
         decision["bass_note_hz"] = bass_note_hz
         decision["bass_note_control_db"] = -1.2 if low_vs_mid > 4.5 else 0.8
         decision["actions"].append(f"Control automático de bajos por nota ({bass_note_hz:.1f}Hz)")
-    if features.get("smart_ms_sculptor", True):
+    if features.get("smart_ms_sculptor", False):
         decision["smart_ms_sculptor"] = True
         decision["actions"].append("Smart Mid/Side Sculptor activado")
     if features.get("qa_preflight", True):

@@ -69,13 +69,13 @@ def build_ffmpeg_filter_chain(decision: dict):
 
     drive = decision.get("multiband_drive", "medium")
     if drive == "high":
-        filters.append("acompressor=threshold=0.08:ratio=2.5:attack=15:release=180:makeup=1")
+        filters.append("acompressor=threshold=0.10:ratio=1.8:attack=20:release=200:makeup=1")
         actions.append({"stage": "compressor", "drive": "high"})
     elif drive == "low":
-        filters.append("acompressor=threshold=0.12:ratio=1.8:attack=20:release=200:makeup=1")
+        filters.append("acompressor=threshold=0.16:ratio=1.25:attack=28:release=260:makeup=1")
         actions.append({"stage": "compressor", "drive": "low"})
     else:
-        filters.append("acompressor=threshold=0.10:ratio=2.1:attack=18:release=190:makeup=1")
+        filters.append("acompressor=threshold=0.12:ratio=1.45:attack=24:release=220:makeup=1")
         actions.append({"stage": "compressor", "drive": "medium"})
 
     if decision.get("boost_transients") and modules.get("transient_shaper", True):
@@ -88,11 +88,11 @@ def build_ffmpeg_filter_chain(decision: dict):
         actions.append({"stage": "exciter", "band": decision.get("exciter_band", "high_only")})
 
     if modules.get("multiband_glue", True):
-        filters.append("acompressor=threshold=0.11:ratio=1.5:attack=6:release=110:makeup=1")
+        filters.append("acompressor=threshold=0.14:ratio=1.2:attack=14:release=180:makeup=1")
         actions.append({"stage": "multiband_glue", "profile": "transparent"})
 
-    if decision.get("human_glue_stage", True):
-        filters.append("acompressor=threshold=0.09:ratio=1.3:attack=35:release=260:makeup=1")
+    if decision.get("human_glue_stage", False):
+        filters.append("acompressor=threshold=0.16:ratio=1.15:attack=40:release=280:makeup=1")
         actions.append({"stage": "human_glue", "profile": "bus_like"})
 
     vocal_presence_boost_db = float(decision.get("vocal_presence_boost_db", 0.0))
