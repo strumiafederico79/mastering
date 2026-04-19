@@ -14,6 +14,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
     resonance_hz = int(analysis.get("resonance_hz", 3500))
     clipping_sections = list(analysis.get("clipping_sections", []))
     true_peak_est_db = float(analysis.get("true_peak_est_db", -3.0))
+    bass_note_hz = float(analysis.get("bass_note_hz", 80.0))
     arrangement_focus = str(analysis.get("arrangement_focus", "balanced_mix"))
     arrangement_tags = list(analysis.get("arrangement_tags", []))
     macro_dynamics_db = float(analysis.get("macro_dynamics_db", 0.0))
@@ -62,6 +63,12 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         "resonance_hz": resonance_hz,
         "mono_low_end_fix": False,
         "dither_profile": "off",
+        "smart_limiter": False,
+        "limiter_lookahead_ms": 4.0,
+        "limiter_release_ms": 60.0,
+        "bass_note_control_db": 0.0,
+        "bass_note_hz": bass_note_hz,
+        "smart_ms_sculptor": False,
         "actions": [],
         "notes": [],
         "genre": "general",
@@ -239,6 +246,20 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         decision["low_mid_cut_db"] = max(decision["low_mid_cut_db"], 1.6)
         decision["vocal_presence_boost_db"] = max(decision["vocal_presence_boost_db"], 1.0)
         decision["actions"].append("Vocal Priority con sidechain musical (aproximado)")
+    if features.get("smart_limiter_lookahead", True):
+        decision["smart_limiter"] = True
+        decision["limiter_lookahead_ms"] = min(8.0, max(2.0, 3.5 + (4.8 - min(4.8, crest))))
+        decision["limiter_release_ms"] = 90.0 if macro_dynamics_db > 3.5 else 60.0
+        decision["actions"].append("Limiter inteligente con lookahead adaptativo")
+    if features.get("bass_note_control", True):
+        decision["bass_note_hz"] = bass_note_hz
+        decision["bass_note_control_db"] = -1.2 if low_vs_mid > 4.5 else 0.8
+        decision["actions"].append(f"Control automático de bajos por nota ({bass_note_hz:.1f}Hz)")
+    if features.get("smart_ms_sculptor", True):
+        decision["smart_ms_sculptor"] = True
+        decision["actions"].append("Smart Mid/Side Sculptor activado")
+    if features.get("qa_preflight", True):
+        decision["notes"].append("QA pre-flight activado: validación de LUFS/TP/clipping/fase antes de exportar.")
 
     stem_mode = options.get("stem_mode")
     if stem_mode in {"full_mix", "vocals_only", "instrumental_only"}:

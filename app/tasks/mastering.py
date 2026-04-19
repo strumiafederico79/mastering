@@ -61,6 +61,22 @@ def update_job(job_id: str, **fields):
     payload.update(fields)
     write_job(job_id, payload)
 
+def build_preflight_report(analysis: dict, decision: dict, metrics: dict) -> dict:
+    clipping_sections = analysis.get("clipping_sections", [])
+    tp_est = float(analysis.get("true_peak_est_db", -3.0))
+    target_lufs = float(decision.get("target_lufs", -11.0))
+    input_i = float(metrics.get("input_i", -18.0)) if metrics else -18.0
+    return {
+        "ok": len(clipping_sections) == 0 and tp_est < -0.1,
+        "checks": {
+            "clipping_sections": clipping_sections,
+            "true_peak_est_db": tp_est,
+            "target_lufs": target_lufs,
+            "input_lufs_before_norm": input_i,
+            "phase_corr_est": analysis.get("phase_corr", 1.0),
+        },
+    }
+
 @celery_app.task(name="app.tasks.run_mastering")
 def run_mastering(job_id: str, input_filename: str, mode: str = "human_master", options: dict | None = None):
     input_path = UPLOAD_DIR / input_filename
@@ -109,7 +125,9 @@ def run_mastering(job_id: str, input_filename: str, mode: str = "human_master", 
             apply_dither(str(final_wav), str(final_wav_dither), profile=str(dither_profile))
             final_wav = final_wav_dither
 
-        update_job(job_id, progress=90, message="Exportando MP3...", metrics=metrics)
+        qa_report = build_preflight_report(analysis, decision, metrics)
+
+        update_job(job_id, progress=90, message="Exportando MP3...", metrics=metrics, qa_report=qa_report)
         export_mp3(str(final_wav), str(final_mp3))
 
         update_job(job_id, progress=94, message="Generando acapella e instrumental...")

@@ -104,6 +104,13 @@ def analyze_audio(y, sr):
         peak_i = int(np.argmax(sub_spec))
         resonance_hz = int(freqs[idx][peak_i])
     ab_match_gain_db = float(-18.0 - (20 * np.log10(rms + 1e-8)))
+    loudness_radar = [float(x) for x in section_rms_db]
+    bass_idx = (freqs >= 40) & (freqs <= 160)
+    bass_note_hz = 80.0
+    if np.any(bass_idx):
+        idx = np.where(bass_idx)[0]
+        bass_spec = np.mean(spec[idx], axis=1)
+        bass_note_hz = float(freqs[idx][int(np.argmax(bass_spec))])
     if hook_lift_db > 1.3:
         arrangement_tags.append("hook_con_lift")
     if macro_dynamics > 5.0:
@@ -138,6 +145,8 @@ def analyze_audio(y, sr):
         "harshness_index": harshness_index,
         "resonance_hz": resonance_hz,
         "ab_match_gain_db": ab_match_gain_db,
+        "loudness_radar": loudness_radar,
+        "bass_note_hz": bass_note_hz,
         "phase_corr": 1.0,
         "stereo_width": 0.0,
         "issues": issues,

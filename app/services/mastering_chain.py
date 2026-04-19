@@ -112,6 +112,12 @@ def build_ffmpeg_filter_chain(decision: dict):
         filters.append(f"volume={_db(instrument_glue_db)}dB")
         actions.append({"stage": "instrument_glue", "db": instrument_glue_db})
 
+    bass_note_control_db = float(decision.get("bass_note_control_db", 0.0))
+    if abs(bass_note_control_db) > 0.05:
+        bass_hz = int(decision.get("bass_note_hz", 80))
+        filters.append(f"equalizer=f={bass_hz}:t=q:w=1.4:g={_db(bass_note_control_db)}")
+        actions.append({"stage": "bass_note_control", "db": bass_note_control_db, "hz": bass_hz})
+
     if decision.get("mono_low_end_fix"):
         filters.append("highpass=f=28")
         actions.append({"stage": "mono_low_end_fix", "f": 28})
@@ -133,8 +139,20 @@ def build_ffmpeg_filter_chain(decision: dict):
 
     if modules.get("true_peak_limiter", True):
         # Keep limiter syntax broadly compatible with ffmpeg builds.
-        filters.append("alimiter=limit=0.98")
-        actions.append({"stage": "true_peak_limiter", "ceiling": decision.get("limiter_ceiling_dbtp", -1.0)})
+        limit = float(decision.get("limiter_ceiling_dbtp", -1.0))
+        peak_linear = max(0.85, min(0.99, 10 ** (limit / 20.0)))
+        if decision.get("smart_limiter"):
+            lookahead = float(decision.get("limiter_lookahead_ms", 4.0))
+            release = float(decision.get("limiter_release_ms", 60.0))
+            filters.append(f"alimiter=limit={peak_linear:.3f}:attack={lookahead}:release={release}")
+            actions.append({"stage": "smart_limiter", "lookahead_ms": lookahead, "release_ms": release, "ceiling_dbtp": limit})
+        else:
+            filters.append(f"alimiter=limit={peak_linear:.3f}")
+            actions.append({"stage": "true_peak_limiter", "ceiling": limit})
+
+    if decision.get("smart_ms_sculptor"):
+        filters.append("extrastereo=m=1.08")
+        actions.append({"stage": "smart_ms_sculptor", "amount": 1.08})
 
     actions.append({"stage": "human_strategy", "profile": human_pass_strategy})
 

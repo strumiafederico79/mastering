@@ -24,6 +24,11 @@ const els = {
   fxResonance: document.getElementById('fxResonance'),
   fxDither: document.getElementById('fxDither'),
   fxVocalPriority: document.getElementById('fxVocalPriority'),
+  fxSmartLimiter: document.getElementById('fxSmartLimiter'),
+  fxLoudnessRadar: document.getElementById('fxLoudnessRadar'),
+  fxBassNoteControl: document.getElementById('fxBassNoteControl'),
+  fxMsSculptor: document.getElementById('fxMsSculptor'),
+  fxQaPreflight: document.getElementById('fxQaPreflight'),
   btn: document.getElementById('masterBtn'),
   profile: document.getElementById('profile'),
   state: document.getElementById('state'),
@@ -33,6 +38,7 @@ const els = {
   advancedPlan: document.getElementById('advancedPlan'),
   arrangementTags: document.getElementById('arrangementTags'),
   sectionMap: document.getElementById('sectionMap'),
+  loudnessRadar: document.getElementById('loudnessRadar'),
   humanNote: document.getElementById('humanNote'),
   actions: document.getElementById('actions'),
   analysisBox: document.getElementById('analysisBox'),
@@ -216,6 +222,23 @@ function renderSectionMap(analysis) {
   els.sectionMap.textContent = rows.join('\n');
 }
 
+function renderLoudnessRadar(analysis) {
+  if (!els.loudnessRadar) return;
+  const points = analysis?.loudness_radar || analysis?.section_rms_db || [];
+  if (!points.length) {
+    els.loudnessRadar.textContent = 'Sin datos de radar.';
+    return;
+  }
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const rows = points.map((v, i) => {
+    const norm = max === min ? 0.5 : (v - min) / (max - min);
+    const bars = '▮'.repeat(Math.max(1, Math.round(norm * 12)));
+    return `T${i + 1}: ${bars.padEnd(12, '·')} ${v.toFixed(1)} LU-ish`;
+  });
+  els.loudnessRadar.textContent = rows.join('\n');
+}
+
 function buildHumanNote(analysis, decision) {
   const focus = analysis?.arrangement_focus || 'balanced_mix';
   const tags = (analysis?.arrangement_tags || []).join(', ') || 'sin tags relevantes';
@@ -396,6 +419,11 @@ async function uploadFile() {
       resonance_hunter: Boolean(els.fxResonance?.checked),
       dither_noise_shaping: Boolean(els.fxDither?.checked),
       vocal_priority_sidechain: Boolean(els.fxVocalPriority?.checked),
+      smart_limiter_lookahead: Boolean(els.fxSmartLimiter?.checked),
+      loudness_radar: Boolean(els.fxLoudnessRadar?.checked),
+      bass_note_control: Boolean(els.fxBassNoteControl?.checked),
+      smart_ms_sculptor: Boolean(els.fxMsSculptor?.checked),
+      qa_preflight: Boolean(els.fxQaPreflight?.checked),
     },
   }));
 
@@ -427,6 +455,7 @@ async function pollJob(jobId, localStats) {
     renderAdvancedPlan(buildAdvancedPlan(data, localStats));
     renderArrangementTags(data.analysis?.arrangement_tags || data.decision?.arrangement_tags || []);
     renderSectionMap(data.analysis || {});
+    renderLoudnessRadar(data.analysis || {});
     setText(els.humanNote, buildHumanNote(data.analysis || {}, data.decision || {}));
 
     const confidence = estimateConfidence((data.issues || []).length, els.intensity.value);
