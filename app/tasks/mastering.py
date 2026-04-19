@@ -1,4 +1,5 @@
 import traceback, subprocess
+import re
 from pathlib import Path
 
 from app.worker_app import celery_app
@@ -19,6 +20,15 @@ def _normalize_af_chain(af_chain: str) -> str:
     or stale worker deployments.
     """
     normalized = af_chain.replace(":level=disabled", "")
+    # FFmpeg 7+ en Debian valida makeup >= 1 para acompressor.
+    def clamp_makeup(match):
+        try:
+            val = float(match.group(1))
+        except ValueError:
+            return "makeup=1"
+        return f"makeup={max(1.0, val):.2f}".rstrip("0").rstrip(".")
+
+    normalized = re.sub(r"makeup=([0-9]*\.?[0-9]+)", clamp_makeup, normalized)
     # Clean accidental duplicate separators.
     normalized = ",".join([chunk for chunk in normalized.split(",") if chunk])
     return normalized
