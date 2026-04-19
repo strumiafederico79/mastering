@@ -6,8 +6,8 @@ from app.core.config import settings
 from app.services.audio_io import load_audio_for_analysis
 from app.services.analyzer import analyze_audio
 from app.services.decision_engine import decide_mastering
-from app.services.mastering_chain import build_ffmpeg_filter_chain, build_safe_filter_chain
-from app.services.ffmpeg_tools import export_mp3, loudnorm_two_pass
+from app.services.mastering_chain import build_ffmpeg_filter_chain
+from app.services.ffmpeg_tools import export_mp3, export_stem, loudnorm_two_pass
 from app.services.job_store import read_job, write_job
 from app.services.learning import append_learning
 
@@ -61,6 +61,10 @@ def run_mastering(job_id: str, input_filename: str, mode: str = "human_master", 
     stage1_wav = OUTPUT_DIR / f"{job_id}_stage1.wav"
     final_wav = OUTPUT_DIR / f"{job_id}.wav"
     final_mp3 = OUTPUT_DIR / f"{job_id}.mp3"
+    acapella_wav = OUTPUT_DIR / f"{job_id}_acapella.wav"
+    acapella_mp3 = OUTPUT_DIR / f"{job_id}_acapella.mp3"
+    instrumental_wav = OUTPUT_DIR / f"{job_id}_instrumental.wav"
+    instrumental_mp3 = OUTPUT_DIR / f"{job_id}_instrumental.mp3"
 
     try:
         update_job(job_id, status="processing", progress=5, message="Cargando audio...")
@@ -96,6 +100,12 @@ def run_mastering(job_id: str, input_filename: str, mode: str = "human_master", 
         update_job(job_id, progress=90, message="Exportando MP3...", metrics=metrics)
         export_mp3(str(final_wav), str(final_mp3))
 
+        update_job(job_id, progress=94, message="Generando acapella e instrumental...")
+        export_stem(str(final_wav), str(acapella_wav), stem_mode="acapella")
+        export_stem(str(final_wav), str(instrumental_wav), stem_mode="instrumental")
+        export_mp3(str(acapella_wav), str(acapella_mp3))
+        export_mp3(str(instrumental_wav), str(instrumental_mp3))
+
         append_learning({
             "genre": decision.get("genre", "general"),
             "target_lufs": decision.get("target_lufs", -10.5),
@@ -108,7 +118,14 @@ def run_mastering(job_id: str, input_filename: str, mode: str = "human_master", 
             progress=100,
             message="Mastering terminado.",
             profile=decision.get("preset_name", "Human Master"),
-            outputs={"wav_path": str(final_wav), "mp3_path": str(final_mp3)},
+            outputs={
+                "wav_path": str(final_wav),
+                "mp3_path": str(final_mp3),
+                "acapella_wav_path": str(acapella_wav),
+                "acapella_mp3_path": str(acapella_mp3),
+                "instrumental_wav_path": str(instrumental_wav),
+                "instrumental_mp3_path": str(instrumental_mp3),
+            },
             error=None,
         )
         print(f"[{job_id}] DONE", flush=True)

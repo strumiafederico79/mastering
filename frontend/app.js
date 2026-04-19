@@ -34,6 +34,10 @@ const els = {
   downloads: document.getElementById('downloads'),
   downloadWav: document.getElementById('downloadWav'),
   downloadMp3: document.getElementById('downloadMp3'),
+  downloadAcapellaWav: document.getElementById('downloadAcapellaWav'),
+  downloadAcapellaMp3: document.getElementById('downloadAcapellaMp3'),
+  downloadInstrumentalWav: document.getElementById('downloadInstrumentalWav'),
+  downloadInstrumentalMp3: document.getElementById('downloadInstrumentalMp3'),
   meterDynamics: document.getElementById('meterDynamics'),
   meterStereo: document.getElementById('meterStereo'),
   meterTone: document.getElementById('meterTone'),
@@ -414,8 +418,12 @@ async function pollJob(jobId, localStats) {
     setSteps(progress, data.status || 'queued');
 
     if (data.status === 'done') {
-      if (els.downloadWav) els.downloadWav.href = `/api/jobs/${jobId}/download?fmt=wav`;
-      if (els.downloadMp3) els.downloadMp3.href = `/api/jobs/${jobId}/download?fmt=mp3`;
+      if (els.downloadWav) els.downloadWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=master`;
+      if (els.downloadMp3) els.downloadMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=master`;
+      if (els.downloadAcapellaWav) els.downloadAcapellaWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=acapella`;
+      if (els.downloadAcapellaMp3) els.downloadAcapellaMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=acapella`;
+      if (els.downloadInstrumentalWav) els.downloadInstrumentalWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=instrumental`;
+      if (els.downloadInstrumentalMp3) els.downloadInstrumentalMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=instrumental`;
       els.downloads?.classList.remove('hidden');
       setText(els.statusText, 'Master listo. Descarga disponible.');
       return;
