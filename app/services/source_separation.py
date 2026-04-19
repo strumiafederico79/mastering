@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 
-def separate_with_demucs(input_audio: str, out_root: str) -> dict[str, str] | None:
+def separate_with_demucs(input_audio: str, out_root: str, timeout_sec: int = 900) -> dict[str, str] | None:
     """
     Runs Demucs 4-stem separation when available.
     Returns paths for vocals/drums/bass/other if successful, else None.
@@ -19,10 +19,11 @@ def separate_with_demucs(input_audio: str, out_root: str) -> dict[str, str] | No
     cmd = [
         demucs_bin,
         "-n", "htdemucs",
+        "-d", "cpu",
         "-o", str(out_dir),
         input_audio,
     ]
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout_sec)
 
     track_name = Path(input_audio).stem
     stem_dir = out_dir / "htdemucs" / track_name

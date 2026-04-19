@@ -147,16 +147,21 @@ def run_mastering(job_id: str, input_filename: str, mode: str = "human_master", 
             demucs_stems = None
 
         if demucs_stems:
-            acapella_wav = Path(demucs_stems["vocals_wav_path"])
-            mix_stems_to_instrumental(
-                demucs_stems["drums_wav_path"],
-                demucs_stems["bass_wav_path"],
-                demucs_stems["other_wav_path"],
-                str(instrumental_wav),
-            )
-            export_mp3(demucs_stems["drums_wav_path"], str(drums_mp3))
-            export_mp3(demucs_stems["bass_wav_path"], str(bass_mp3))
-            export_mp3(demucs_stems["other_wav_path"], str(other_mp3))
+            try:
+                acapella_wav = Path(demucs_stems["vocals_wav_path"])
+                mix_stems_to_instrumental(
+                    demucs_stems["drums_wav_path"],
+                    demucs_stems["bass_wav_path"],
+                    demucs_stems["other_wav_path"],
+                    str(instrumental_wav),
+                )
+                export_mp3(demucs_stems["drums_wav_path"], str(drums_mp3))
+                export_mp3(demucs_stems["bass_wav_path"], str(bass_mp3))
+                export_mp3(demucs_stems["other_wav_path"], str(other_mp3))
+            except Exception:
+                demucs_stems = None
+                export_stem(str(final_wav), str(acapella_wav), stem_mode="acapella")
+                export_stem(str(final_wav), str(instrumental_wav), stem_mode="instrumental")
         else:
             export_stem(str(final_wav), str(acapella_wav), stem_mode="acapella")
             export_stem(str(final_wav), str(instrumental_wav), stem_mode="instrumental")
