@@ -68,15 +68,16 @@ def build_ffmpeg_filter_chain(decision: dict):
         actions.append({"stage": "resonance_hunter", "db": -resonance_cut_db, "hz": resonance_hz})
 
     drive = decision.get("multiband_drive", "medium")
-    if drive == "high":
-        filters.append("acompressor=threshold=0.10:ratio=1.8:attack=20:release=200:makeup=1")
-        actions.append({"stage": "compressor", "drive": "high"})
-    elif drive == "low":
-        filters.append("acompressor=threshold=0.16:ratio=1.25:attack=28:release=260:makeup=1")
-        actions.append({"stage": "compressor", "drive": "low"})
-    else:
-        filters.append("acompressor=threshold=0.12:ratio=1.45:attack=24:release=220:makeup=1")
-        actions.append({"stage": "compressor", "drive": "medium"})
+    if decision.get("enable_main_compressor", False):
+        if drive == "high":
+            filters.append("acompressor=threshold=0.10:ratio=1.8:attack=20:release=200:makeup=1")
+            actions.append({"stage": "compressor", "drive": "high"})
+        elif drive == "low":
+            filters.append("acompressor=threshold=0.16:ratio=1.25:attack=28:release=260:makeup=1")
+            actions.append({"stage": "compressor", "drive": "low"})
+        else:
+            filters.append("acompressor=threshold=0.12:ratio=1.45:attack=24:release=220:makeup=1")
+            actions.append({"stage": "compressor", "drive": "medium"})
 
     if decision.get("boost_transients") and modules.get("transient_shaper", True):
         # Keep limiter syntax broadly compatible with ffmpeg builds.
@@ -87,7 +88,7 @@ def build_ffmpeg_filter_chain(decision: dict):
         filters.append("aexciter=amount=0.6:drive=8:blend=0.2")
         actions.append({"stage": "exciter", "band": decision.get("exciter_band", "high_only")})
 
-    if modules.get("multiband_glue", True):
+    if modules.get("multiband_glue", True) and decision.get("enable_main_compressor", False):
         filters.append("acompressor=threshold=0.14:ratio=1.2:attack=14:release=180:makeup=1")
         actions.append({"stage": "multiband_glue", "profile": "transparent"})
 

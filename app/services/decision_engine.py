@@ -47,6 +47,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         "deharsh_db": 0.0,
         "deharsh_center_hz": 3500,
         "multiband_drive": "low",
+        "enable_main_compressor": False,
         "limiter_ceiling_dbtp": -1.0,
         "vocal_presence_boost_db": 0.0,
         "vocal_presence_hz": 2200,
@@ -119,6 +120,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
     if "weak_transients" in issues or low_vs_mid > 4.0:
         decision["boost_transients"] = True
         decision["transient_focus"] = "mid_high"
+        decision["enable_main_compressor"] = True
         decision["actions"].append("Recuperar pegada")
         decision["notes"].append("Se reforzó ataque percibido.")
 
@@ -165,6 +167,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
     if decision["genre"] == "club_or_dark_mix":
         decision["target_lufs"] = -10.8
         decision["multiband_drive"] = "high"
+        decision["enable_main_compressor"] = True
     elif decision["genre"] == "open_or_hifi":
         decision["target_lufs"] = -10.8
         decision["multiband_drive"] = "low"
@@ -173,6 +176,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         decision["preset_name"] = "Human Adaptive Master • Punch Bias"
         decision["target_lufs"] = -10.5
         decision["multiband_drive"] = "high"
+        decision["enable_main_compressor"] = True
         decision["boost_transients"] = True
         decision["actions"].append("Modo punch: impacto y loudness competitivo")
     elif mode == "assistant_warm":
@@ -196,6 +200,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
     if isinstance(intensity, (int, float)):
         if intensity >= 80:
             decision["multiband_drive"] = "high"
+            decision["enable_main_compressor"] = True
             decision["boost_transients"] = True
         elif intensity <= 40:
             decision["multiband_drive"] = "low"
@@ -277,6 +282,7 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
             decision["target_lufs"] = max(decision["target_lufs"], -9.2)
             decision["limiter_ceiling_dbtp"] = -0.3
             decision["multiband_drive"] = "high"
+            decision["enable_main_compressor"] = True
             decision["cd_presence_stage"] = True
             decision["cd_low_weight_stage"] = True
             decision["actions"].append("Entrega CD: loudness, pegada y estabilidad de traducción")
