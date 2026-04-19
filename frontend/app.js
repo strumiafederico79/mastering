@@ -6,6 +6,8 @@ const els = {
   assistantMode: document.getElementById('assistantMode'),
   genrePreset: document.getElementById('genrePreset'),
   targetLufs: document.getElementById('targetLufs'),
+  stemMode: document.getElementById('stemMode'),
+  deliveryTarget: document.getElementById('deliveryTarget'),
   intensity: document.getElementById('intensity'),
   modDynamicEq: document.getElementById('modDynamicEq'),
   modMultibandGlue: document.getElementById('modMultibandGlue'),
@@ -275,6 +277,8 @@ async function analyzeLocalAudio(file) {
 function buildAdvancedPlan(data, localStats) {
   const genre = els.genrePreset.value;
   const targetLufs = Number(els.targetLufs.value);
+  const stemMode = els.stemMode?.value || 'full_mix';
+  const deliveryTarget = els.deliveryTarget?.value || 'streaming';
   const intensity = Number(els.intensity.value);
   const mode = els.assistantMode.value;
   const referenceLoaded = Boolean(els.referenceFile.files[0]);
@@ -282,6 +286,14 @@ function buildAdvancedPlan(data, localStats) {
   const plan = [];
   plan.push(`Human adaptive mode ${mode}/${genre}: decisión guiada por contexto musical real.`);
   plan.push(`Target final: ${targetLufs} LUFS con limitación transparente y control true-peak preventivo.`);
+  if (stemMode !== 'full_mix') {
+    plan.push(stemMode === 'vocals_only'
+      ? 'Stem mode activo: priorizar voz centrada para referencia vocal.'
+      : 'Stem mode activo: atenuar centro para versión instrumental rápida.');
+  }
+  if (deliveryTarget === 'cd_master') {
+    plan.push('Entrega CD: cadena extra de glue humano + loudness competitivo estilo disco físico.');
+  }
   if (data.analysis?.arrangement_focus) {
     plan.push(`Arreglo detectado: ${data.analysis.arrangement_focus} con tratamiento específico para voz/instrumentos/coros.`);
   }
@@ -348,6 +360,8 @@ async function uploadFile() {
   form.append('mode', els.assistantMode.value);
   form.append('options_json', JSON.stringify({
     target_lufs: Number(els.targetLufs.value),
+    stem_mode: els.stemMode?.value || 'full_mix',
+    delivery_target: els.deliveryTarget?.value || 'streaming',
     intensity: Number(els.intensity.value),
     stereo_amount: Math.min(0.6, Math.max(0, Number(els.intensity.value) / 200)),
     reference_loaded: Boolean(els.referenceFile.files[0]),
