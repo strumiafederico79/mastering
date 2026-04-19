@@ -8,7 +8,9 @@
   <script src="https://unpkg.com/wavesurfer.js"></script>
 </head>
 <body>
-  <div class="grain"></div>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
   <main class="shell">
     <section class="hero">
       <div class="badge">HUMAN ADAPTIVE MASTERING • PREMIUM ENGINE</div>
@@ -87,6 +89,10 @@
         </div>
 
         <div class="progress-wrap">
+          <div class="progress-meta">
+            <span id="statusText">Esperando archivo...</span>
+            <span id="progressLabel">0%</span>
+          </div>
           <div class="progress-bar"><div id="progressBar"></div></div>
         </div>
 
@@ -126,8 +132,14 @@
           </div>
         </div>
 
-        <div class="section-title">Issues detectados</div>
-        <ul id="issues" class="pill-list"></ul>
+      <aside class="isotope-grid" id="isotopeGrid">
+        <section class="iso-card" data-group="health" data-score="3">
+          <header>
+            <h3>Issues Detectados</h3>
+            <span class="chip">Health</span>
+          </header>
+          <ul id="issues" class="pill-list"></ul>
+        </section>
 
         <div class="section-title">Plan avanzado (estilo assistant)</div>
         <ul id="advancedPlan" class="list"></ul>
@@ -138,11 +150,23 @@
         <div class="section-title">Cadena aplicada por backend</div>
         <ul id="actions" class="list"></ul>
 
-        <div class="section-title">Análisis</div>
-        <pre id="analysisBox"></pre>
+        <section class="iso-card" data-group="analysis" data-score="1">
+          <header>
+            <h3>Análisis Profundo</h3>
+            <span class="chip">Analyzer</span>
+          </header>
+          <pre id="analysisBox"></pre>
+        </section>
 
-        <div class="section-title">Decisión</div>
-        <pre id="decisionBox"></pre>
+        <section class="iso-card" data-group="decision" data-score="4">
+          <header>
+            <h3>Decisión del Motor</h3>
+            <span class="chip">Decision AI</span>
+          </header>
+          <pre id="decisionBox"></pre>
+        </section>
+      </aside>
+    </section>
 
         <div class="downloads hidden" id="downloads">
           <a id="downloadWav" href="#">Descargar WAV</a>
@@ -151,6 +175,7 @@
       </article>
     </section>
   </main>
+
   <script src="/app.js"></script>
 </body>
 </html>
