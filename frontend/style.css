@@ -36,6 +36,9 @@ input[type=range]{padding:0;height:36px;accent-color:var(--accent)}
 
 .assistant-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .span-2{grid-column:span 2}
+.module-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:6px 0 14px}
+.module-grid label{display:flex;gap:8px;align-items:center;padding:10px;border-radius:10px;border:1px solid var(--line);background:#091222;font-size:13px;color:#bfd5ff}
+.module-grid input[type=checkbox]{accent-color:var(--accent)}
 
 button{width:100%;padding:15px;border:0;border-radius:14px;cursor:pointer;background:linear-gradient(180deg,var(--accent),#2e65d9);color:#f4f9ff;font-weight:700;font-size:17px;box-shadow:0 12px 30px rgba(78,161,255,.28);transition:.2s transform,.2s opacity}
 button:hover{transform:translateY(-1px)}

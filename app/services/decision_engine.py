@@ -1,4 +1,5 @@
-def decide_mastering(analysis: dict, mode: str = "human_master") -> dict:
+def decide_mastering(analysis: dict, mode: str = "human_master", options: dict | None = None) -> dict:
+    options = options or {}
     low = float(analysis.get("low", 0.0))
     low_mid = float(analysis.get("low_mid", 0.0))
     mid = float(analysis.get("mid", 0.0))
@@ -35,6 +36,14 @@ def decide_mastering(analysis: dict, mode: str = "human_master") -> dict:
         "actions": [],
         "notes": [],
         "genre": "general",
+        "advanced_modules": {
+            "dynamic_eq": True,
+            "multiband_glue": True,
+            "stereo_imager": True,
+            "harmonic_exciter": True,
+            "transient_shaper": True,
+            "true_peak_limiter": True,
+        },
     }
 
     low_vs_mid = low / max(mid, 1e-6)
@@ -80,6 +89,49 @@ def decide_mastering(analysis: dict, mode: str = "human_master") -> dict:
     elif decision["genre"] == "open_or_hifi":
         decision["target_lufs"] = -10.8
         decision["multiband_drive"] = "low"
+
+    if mode == "assistant_punch":
+        decision["preset_name"] = "Assistant Punch"
+        decision["target_lufs"] = -9.5
+        decision["multiband_drive"] = "high"
+        decision["boost_transients"] = True
+        decision["actions"].append("Modo punch: impacto y loudness competitivo")
+    elif mode == "assistant_warm":
+        decision["preset_name"] = "Assistant Warm"
+        decision["air_shelf_db"] = max(0.4, decision["air_shelf_db"] - 0.5)
+        decision["presence_boost_db"] = max(0.3, decision["presence_boost_db"] - 0.4)
+        decision["target_lufs"] = -11.2
+        decision["actions"].append("Modo warm: suavidad armónica y densidad musical")
+    elif mode == "assistant_open":
+        decision["preset_name"] = "Assistant Open"
+        decision["air_shelf_db"] = max(1.2, decision["air_shelf_db"])
+        decision["use_exciter"] = True
+        decision["exciter_band"] = "high_only"
+        decision["actions"].append("Modo open: más aire y amplitud estéreo")
+
+    requested_lufs = options.get("target_lufs")
+    if isinstance(requested_lufs, (int, float)) and -16 <= float(requested_lufs) <= -7:
+        decision["target_lufs"] = float(requested_lufs)
+
+    intensity = options.get("intensity")
+    if isinstance(intensity, (int, float)):
+        if intensity >= 80:
+            decision["multiband_drive"] = "high"
+            decision["boost_transients"] = True
+        elif intensity <= 40:
+            decision["multiband_drive"] = "low"
+            decision["use_deharsh"] = True
+            decision["deharsh_db"] = max(1.0, decision["deharsh_db"])
+
+    stereo_amount = options.get("stereo_amount")
+    if isinstance(stereo_amount, (int, float)):
+        decision["widen_amount"] = max(0.0, min(0.6, float(stereo_amount)))
+
+    modules = options.get("modules")
+    if isinstance(modules, dict):
+        for module_name, enabled in modules.items():
+            if module_name in decision["advanced_modules"]:
+                decision["advanced_modules"][module_name] = bool(enabled)
 
     if not decision["actions"]:
         decision["actions"].append("Glue sutil y control final")

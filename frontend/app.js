@@ -3,9 +3,16 @@ let wave = null;
 const els = {
   file: document.getElementById('file'),
   referenceFile: document.getElementById('referenceFile'),
+  assistantMode: document.getElementById('assistantMode'),
   genrePreset: document.getElementById('genrePreset'),
   targetLufs: document.getElementById('targetLufs'),
   intensity: document.getElementById('intensity'),
+  modDynamicEq: document.getElementById('modDynamicEq'),
+  modMultibandGlue: document.getElementById('modMultibandGlue'),
+  modStereoImager: document.getElementById('modStereoImager'),
+  modExciter: document.getElementById('modExciter'),
+  modTransient: document.getElementById('modTransient'),
+  modLimiter: document.getElementById('modLimiter'),
   btn: document.getElementById('masterBtn'),
   profile: document.getElementById('profile'),
   state: document.getElementById('state'),
@@ -50,6 +57,13 @@ async function refreshPluginInfo() {
     if (data.ladspa_filter) els.pluginBackend.textContent = 'ladspa/native';
     else if (data.lv2_filter) els.pluginBackend.textContent = 'lv2/native';
     else els.pluginBackend.textContent = 'native';
+
+    const modules = Object.entries(data.advanced_modules || {})
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([name]) => name);
+    if (modules.length) {
+      els.statusText.textContent = `Módulos disponibles: ${modules.slice(0, 3).join(', ')}${modules.length > 3 ? '...' : ''}`;
+    }
   } catch (_) {
     els.pluginBackend.textContent = 'native';
   }
@@ -158,10 +172,11 @@ function buildAdvancedPlan(data, localStats) {
   const genre = els.genrePreset.value;
   const targetLufs = Number(els.targetLufs.value);
   const intensity = Number(els.intensity.value);
+  const mode = els.assistantMode.value;
   const referenceLoaded = Boolean(els.referenceFile.files[0]);
 
   const plan = [];
-  plan.push(`Assistant preset ${genre}: curva tonal adaptativa y control dinámico inteligente.`);
+  plan.push(`Assistant mode ${mode}/${genre}: curva tonal adaptativa y control dinámico inteligente.`);
   plan.push(`Target final: ${targetLufs} LUFS con limitación transparente y control true-peak preventivo.`);
 
   if (localStats) {
@@ -222,7 +237,21 @@ async function uploadFile() {
 
   const form = new FormData();
   form.append('file', file);
-  form.append('mode', 'human_master');
+  form.append('mode', els.assistantMode.value);
+  form.append('options_json', JSON.stringify({
+    target_lufs: Number(els.targetLufs.value),
+    intensity: Number(els.intensity.value),
+    stereo_amount: Math.min(0.6, Math.max(0, Number(els.intensity.value) / 200)),
+    reference_loaded: Boolean(els.referenceFile.files[0]),
+    modules: {
+      dynamic_eq: els.modDynamicEq.checked,
+      multiband_glue: els.modMultibandGlue.checked,
+      stereo_imager: els.modStereoImager.checked,
+      harmonic_exciter: els.modExciter.checked,
+      transient_shaper: els.modTransient.checked,
+      true_peak_limiter: els.modLimiter.checked,
+    },
+  }));
 
   try {
     els.statusText.textContent = 'Subiendo al motor de mastering...';

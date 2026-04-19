@@ -31,6 +31,16 @@
 
         <div class="assistant-grid">
           <div class="control-group">
+            <label for="assistantMode">Modo de master</label>
+            <select id="assistantMode">
+              <option value="human_master" selected>Human Master</option>
+              <option value="assistant_punch">Assistant Punch</option>
+              <option value="assistant_warm">Assistant Warm</option>
+              <option value="assistant_open">Assistant Open</option>
+            </select>
+          </div>
+
+          <div class="control-group">
             <label for="genrePreset">Asistente de género</label>
             <select id="genrePreset">
               <option value="modern_pop">Modern Pop</option>
@@ -54,6 +64,16 @@
             <label for="intensity">Intensidad del asistente</label>
             <input id="intensity" type="range" min="20" max="100" value="72">
           </div>
+        </div>
+
+        <div class="section-title">Plugins / módulos avanzados</div>
+        <div class="module-grid">
+          <label><input id="modDynamicEq" type="checkbox" checked> Dynamic EQ</label>
+          <label><input id="modMultibandGlue" type="checkbox" checked> Multiband Glue</label>
+          <label><input id="modStereoImager" type="checkbox" checked> Stereo Imager</label>
+          <label><input id="modExciter" type="checkbox" checked> Harmonic Exciter</label>
+          <label><input id="modTransient" type="checkbox" checked> Transient Shaper</label>
+          <label><input id="modLimiter" type="checkbox" checked> True Peak Limiter</label>
         </div>
 
         <button id="masterBtn">Iniciar Mastering</button>
