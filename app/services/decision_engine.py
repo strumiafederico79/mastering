@@ -9,6 +9,11 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
     vocal_presence = float(analysis.get("vocal_presence", 0.0))
     chorus_density = float(analysis.get("chorus_density", 0.0))
     harmonic_ratio = float(analysis.get("harmonic_ratio", 1.0))
+    sibilance_index = float(analysis.get("sibilance_index", 0.0))
+    harshness_index = float(analysis.get("harshness_index", 0.0))
+    resonance_hz = int(analysis.get("resonance_hz", 3500))
+    clipping_sections = list(analysis.get("clipping_sections", []))
+    true_peak_est_db = float(analysis.get("true_peak_est_db", -3.0))
     arrangement_focus = str(analysis.get("arrangement_focus", "balanced_mix"))
     arrangement_tags = list(analysis.get("arrangement_tags", []))
     macro_dynamics_db = float(analysis.get("macro_dynamics_db", 0.0))
@@ -18,6 +23,8 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
     decision = {
         "preset_name": "Human Adaptive Master",
         "target_lufs": -10.5,
+        "stem_mode": "full_mix",
+        "delivery_target": "streaming",
         "tighten_low_end": False,
         "tighten_low_end_strength": "medium",
         "mud_cut_db": 0.0,
@@ -45,6 +52,16 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         "chorus_smooth_db": 0.0,
         "chorus_smooth_hz": 4800,
         "instrument_glue_db": 0.0,
+        "human_glue_stage": True,
+        "cd_presence_stage": False,
+        "cd_low_weight_stage": False,
+        "ab_match_gain_db": float(analysis.get("ab_match_gain_db", 0.0)),
+        "deesser_db": 0.0,
+        "deesser_hz": 6800,
+        "resonance_cut_db": 0.0,
+        "resonance_hz": resonance_hz,
+        "mono_low_end_fix": False,
+        "dither_profile": "off",
         "actions": [],
         "notes": [],
         "genre": "general",
@@ -187,6 +204,61 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         for module_name, enabled in modules.items():
             if module_name in decision["advanced_modules"]:
                 decision["advanced_modules"][module_name] = bool(enabled)
+
+    features = options.get("feature_flags", {})
+    if not isinstance(features, dict):
+        features = {}
+
+    if features.get("ab_match", True):
+        decision["actions"].append("A/B match inteligente activado")
+    if features.get("section_true_peak_guard", True):
+        if clipping_sections or true_peak_est_db > -0.2:
+            decision["limiter_ceiling_dbtp"] = min(decision["limiter_ceiling_dbtp"], -1.0)
+            decision["target_lufs"] = min(decision["target_lufs"], -10.0)
+            decision["notes"].append(f"Guard de clipping por secciones activado ({len(clipping_sections)} secciones en riesgo).")
+    if features.get("ai_stem_mastering", True):
+        decision["actions"].append("Stem mastering inteligente (modo rápido) activado")
+    if features.get("advanced_human_notes", True):
+        decision["notes"].append(
+            f"Nota humana avanzada: sibilance={sibilance_index:.2f}, harshness={harshness_index:.2f}, resonance={resonance_hz}Hz."
+        )
+    if features.get("dynamic_deesser", True) and sibilance_index > 0.22:
+        decision["deesser_db"] = min(2.2, 0.8 + (sibilance_index * 2.0))
+        decision["deesser_hz"] = 6800
+        decision["actions"].append("Control dinámico de sibilancia/harshness por banda")
+    if features.get("phase_mono_fix", True):
+        decision["mono_low_end_fix"] = True
+        decision["actions"].append("Auto-fix mono-compatibilidad en low-end")
+    if features.get("resonance_hunter", True):
+        decision["resonance_cut_db"] = max(decision["resonance_cut_db"], 1.1)
+        decision["actions"].append(f"Detector de resonancias: notch en {resonance_hz}Hz")
+    if features.get("dither_noise_shaping", True):
+        decision["dither_profile"] = "triangular_hp"
+        decision["actions"].append("Dither/noise shaping preparado para entrega final")
+    if features.get("vocal_priority_sidechain", True):
+        decision["low_mid_cut_db"] = max(decision["low_mid_cut_db"], 1.6)
+        decision["vocal_presence_boost_db"] = max(decision["vocal_presence_boost_db"], 1.0)
+        decision["actions"].append("Vocal Priority con sidechain musical (aproximado)")
+
+    stem_mode = options.get("stem_mode")
+    if stem_mode in {"full_mix", "vocals_only", "instrumental_only"}:
+        decision["stem_mode"] = stem_mode
+        if stem_mode == "vocals_only":
+            decision["actions"].append("Preproceso stem: enfoque en voz (centro)")
+        elif stem_mode == "instrumental_only":
+            decision["actions"].append("Preproceso stem: atenuación de voz para instrumental")
+
+    delivery_target = options.get("delivery_target")
+    if delivery_target in {"streaming", "cd_master"}:
+        decision["delivery_target"] = delivery_target
+        if delivery_target == "cd_master":
+            decision["preset_name"] = "Human Adaptive Master • CD Finish"
+            decision["target_lufs"] = max(decision["target_lufs"], -9.2)
+            decision["limiter_ceiling_dbtp"] = -0.3
+            decision["multiband_drive"] = "high"
+            decision["cd_presence_stage"] = True
+            decision["cd_low_weight_stage"] = True
+            decision["actions"].append("Entrega CD: loudness, pegada y estabilidad de traducción")
 
     if not decision["actions"]:
         decision["actions"].append("Glue sutil y control final")
