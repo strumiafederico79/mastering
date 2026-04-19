@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Human Master PRO</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://unpkg.com/wavesurfer.js"></script>
+</head>
+<body>
+  <div class="grain"></div>
+  <main class="shell">
+    <section class="hero">
+      <div class="badge">RETRO VINTAGE MASTERING</div>
+      <h1>Human Master</h1>
+      <p>Un solo flujo. El motor analiza y decide con criterio técnico, sin presets visibles.</p>
+    </section>
+
+    <section class="grid">
+      <div class="card left">
+        <h2>Entrada</h2>
+        <input id="file" type="file" accept=".wav,.mp3,.flac,.ogg,.m4a,audio/*">
+        <button id="masterBtn">Masterizar</button>
+        <div class="wave-card"><div id="waveform"></div></div>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div id="progressBar"></div></div>
+          <div id="statusText">Esperando archivo...</div>
+        </div>
+        <div class="steps">
+          <div class="step" id="stepQueued">Cola</div>
+          <div class="step" id="stepAnalyze">Análisis</div>
+          <div class="step" id="stepProcess">Proceso</div>
+          <div class="step" id="stepExport">Export</div>
+          <div class="step" id="stepDone">Final</div>
+        </div>
+      </div>
+
+      <div class="card right">
+        <h2>Resumen técnico</h2>
+        <div class="kv"><span>Perfil</span><strong id="profile">Human Master</strong></div>
+        <div class="kv"><span>Estado</span><strong id="state">idle</strong></div>
+        <div class="kv"><span>Backend</span><strong id="pluginBackend">native</strong></div>
+
+        <div class="section-title">Issues detectados</div>
+        <ul id="issues" class="pill-list"></ul>
+
+        <div class="section-title">Acciones aplicadas</div>
+        <ul id="actions" class="list"></ul>
+
+        <div class="section-title">Análisis</div>
+        <pre id="analysisBox"></pre>
+
+        <div class="section-title">Decisión</div>
+        <pre id="decisionBox"></pre>
+
+        <div class="downloads hidden" id="downloads">
+          <a id="downloadWav" href="#">Descargar WAV</a>
+          <a id="downloadMp3" href="#">Descargar MP3</a>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
