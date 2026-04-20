@@ -106,6 +106,32 @@
           <label title="Chequeo final de calidad antes de exportar."><input id="fxQaPreflight" type="checkbox" checked> QA final pre-flight</label>
         </div>
 
+        <div class="section-title">Control en vivo de plugins</div>
+        <div class="control-group">
+          <label for="pDynamicEq">Dynamic EQ Amount <strong id="pDynamicEqVal">1.00</strong></label>
+          <input id="pDynamicEq" type="range" min="0" max="2" step="0.01" value="1.00">
+        </div>
+        <div class="control-group">
+          <label for="pMultibandGlue">Multiband Glue Strength <strong id="pMultibandGlueVal">1.00</strong></label>
+          <input id="pMultibandGlue" type="range" min="0" max="2" step="0.01" value="1.00">
+        </div>
+        <div class="control-group">
+          <label for="pStereoWidth">Stereo Width Amount <strong id="pStereoWidthVal">0.10</strong></label>
+          <input id="pStereoWidth" type="range" min="0" max="0.6" step="0.01" value="0.10">
+        </div>
+        <div class="control-group">
+          <label for="pExciterDrive">Exciter Drive <strong id="pExciterDriveVal">8.00</strong></label>
+          <input id="pExciterDrive" type="range" min="1" max="12" step="0.1" value="8.0">
+        </div>
+        <div class="control-group">
+          <label for="pTransientAmount">Transient Support <strong id="pTransientAmountVal">0.95</strong></label>
+          <input id="pTransientAmount" type="range" min="0.85" max="0.99" step="0.01" value="0.95">
+        </div>
+        <div class="control-group">
+          <label for="pLimiterCeiling">Limiter Ceiling (dBTP) <strong id="pLimiterCeilingVal">-1.00</strong></label>
+          <input id="pLimiterCeiling" type="range" min="-2" max="-0.1" step="0.1" value="-1.0">
+        </div>
+
         <button id="masterBtn">Iniciar Mastering</button>
 
         <div class="wave-card">

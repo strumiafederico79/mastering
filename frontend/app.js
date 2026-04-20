@@ -29,6 +29,18 @@ const els = {
   fxBassNoteControl: document.getElementById('fxBassNoteControl'),
   fxMsSculptor: document.getElementById('fxMsSculptor'),
   fxQaPreflight: document.getElementById('fxQaPreflight'),
+  pDynamicEq: document.getElementById('pDynamicEq'),
+  pDynamicEqVal: document.getElementById('pDynamicEqVal'),
+  pMultibandGlue: document.getElementById('pMultibandGlue'),
+  pMultibandGlueVal: document.getElementById('pMultibandGlueVal'),
+  pStereoWidth: document.getElementById('pStereoWidth'),
+  pStereoWidthVal: document.getElementById('pStereoWidthVal'),
+  pExciterDrive: document.getElementById('pExciterDrive'),
+  pExciterDriveVal: document.getElementById('pExciterDriveVal'),
+  pTransientAmount: document.getElementById('pTransientAmount'),
+  pTransientAmountVal: document.getElementById('pTransientAmountVal'),
+  pLimiterCeiling: document.getElementById('pLimiterCeiling'),
+  pLimiterCeilingVal: document.getElementById('pLimiterCeilingVal'),
   btn: document.getElementById('masterBtn'),
   profile: document.getElementById('profile'),
   state: document.getElementById('state'),
@@ -130,6 +142,23 @@ function initToolbar() {
       button.classList.add('active');
       applySort(button.dataset.sort);
     });
+  });
+}
+
+function initLivePluginControls() {
+  const controls = [
+    [els.pDynamicEq, els.pDynamicEqVal, 2],
+    [els.pMultibandGlue, els.pMultibandGlueVal, 2],
+    [els.pStereoWidth, els.pStereoWidthVal, 2],
+    [els.pExciterDrive, els.pExciterDriveVal, 2],
+    [els.pTransientAmount, els.pTransientAmountVal, 2],
+    [els.pLimiterCeiling, els.pLimiterCeilingVal, 2],
+  ];
+  controls.forEach(([input, out, digits]) => {
+    if (!input || !out) return;
+    const refresh = () => { out.textContent = Number(input.value).toFixed(digits); };
+    input.addEventListener('input', refresh);
+    refresh();
   });
 }
 
@@ -412,6 +441,14 @@ async function uploadFile() {
       transient_shaper: els.modTransient.checked,
       true_peak_limiter: els.modLimiter.checked,
     },
+    plugin_params: {
+      dynamic_eq_amount: Number(els.pDynamicEq?.value || 1.0),
+      multiband_glue_strength: Number(els.pMultibandGlue?.value || 1.0),
+      stereo_width_amount: Number(els.pStereoWidth?.value || 0.10),
+      exciter_drive: Number(els.pExciterDrive?.value || 8.0),
+      transient_support: Number(els.pTransientAmount?.value || 0.95),
+      limiter_ceiling_dbtp: Number(els.pLimiterCeiling?.value || -1.0),
+    },
     feature_flags: {
       ab_match: Boolean(els.fxAbMatch?.checked),
       section_true_peak_guard: Boolean(els.fxSectionTp?.checked),
@@ -493,4 +530,5 @@ async function pollJob(jobId, localStats) {
 
 els.btn?.addEventListener('click', uploadFile);
 initToolbar();
+initLivePluginControls();
 refreshPluginInfo();

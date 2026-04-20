@@ -81,16 +81,25 @@ def build_ffmpeg_filter_chain(decision: dict):
 
     if decision.get("boost_transients") and modules.get("transient_shaper", True):
         # Keep limiter syntax broadly compatible with ffmpeg builds.
-        filters.append("alimiter=limit=0.95")
-        actions.append({"stage": "transient_support", "focus": decision.get("transient_focus", "mid_high")})
+        transient_limit = float(decision.get("transient_support", 0.95))
+        filters.append(f"alimiter=limit={max(0.85, min(0.99, transient_limit)):.2f}")
+        actions.append({"stage": "transient_support", "focus": decision.get("transient_focus", "mid_high"), "limit": transient_limit})
 
     if decision.get("use_exciter") and modules.get("harmonic_exciter", True):
-        filters.append("aexciter=amount=0.6:drive=8:blend=0.2")
-        actions.append({"stage": "exciter", "band": decision.get("exciter_band", "high_only")})
+        exciter_drive = float(decision.get("exciter_drive", 8.0))
+        filters.append(f"aexciter=amount=0.6:drive={max(1.0, min(12.0, exciter_drive)):.2f}:blend=0.2")
+        actions.append({"stage": "exciter", "band": decision.get("exciter_band", "high_only"), "drive": exciter_drive})
 
     if modules.get("multiband_glue", True) and decision.get("enable_main_compressor", False):
-        filters.append("acompressor=threshold=0.14:ratio=1.2:attack=14:release=180:makeup=1")
-        actions.append({"stage": "multiband_glue", "profile": "transparent"})
+        glue_strength = float(decision.get("multiband_glue_strength", 1.0))
+        ratio = 1.1 + (max(0.0, min(2.0, glue_strength)) * 0.2)
+        threshold = max(0.10, 0.18 - (glue_strength * 0.03))
+        filters.append(f"acompressor=threshold={threshold:.2f}:ratio={ratio:.2f}:attack=14:release=180:makeup=1")
+        actions.append({"stage": "multiband_glue", "profile": "transparent", "strength": glue_strength})
+
+    if decision.get("human_glue_stage", False):
+        filters.append("acompressor=threshold=0.16:ratio=1.15:attack=40:release=280:makeup=1")
+        actions.append({"stage": "human_glue", "profile": "bus_like"})
 
     if decision.get("human_glue_stage", False):
         filters.append("acompressor=threshold=0.16:ratio=1.15:attack=40:release=280:makeup=1")

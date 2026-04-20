@@ -217,6 +217,22 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
             if module_name in decision["advanced_modules"]:
                 decision["advanced_modules"][module_name] = bool(enabled)
 
+    plugin_params = options.get("plugin_params")
+    if isinstance(plugin_params, dict):
+        dynamic_eq_amount = float(plugin_params.get("dynamic_eq_amount", 1.0))
+        glue_strength = float(plugin_params.get("multiband_glue_strength", 1.0))
+        stereo_width = float(plugin_params.get("stereo_width_amount", decision["widen_amount"]))
+        exciter_drive = float(plugin_params.get("exciter_drive", 8.0))
+        transient_support = float(plugin_params.get("transient_support", 0.95))
+        limiter_ceiling = float(plugin_params.get("limiter_ceiling_dbtp", decision["limiter_ceiling_dbtp"]))
+
+        decision["mud_cut_db"] = max(0.0, decision["mud_cut_db"] * max(0.0, min(2.0, dynamic_eq_amount)))
+        decision["multiband_glue_strength"] = max(0.0, min(2.0, glue_strength))
+        decision["widen_amount"] = max(0.0, min(0.6, stereo_width))
+        decision["exciter_drive"] = max(1.0, min(12.0, exciter_drive))
+        decision["transient_support"] = max(0.85, min(0.99, transient_support))
+        decision["limiter_ceiling_dbtp"] = max(-2.0, min(-0.1, limiter_ceiling))
+
     features = options.get("feature_flags", {})
     if not isinstance(features, dict):
         features = {}
