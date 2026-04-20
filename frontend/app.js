@@ -1,4 +1,8 @@
 let wave = null;
+let previewCtx = null;
+let previewBuffer = null;
+let previewSource = null;
+let previewRunning = false;
 
 const els = {
   file: document.getElementById('file'),
@@ -41,6 +45,7 @@ const els = {
   pTransientAmountVal: document.getElementById('pTransientAmountVal'),
   pLimiterCeiling: document.getElementById('pLimiterCeiling'),
   pLimiterCeilingVal: document.getElementById('pLimiterCeilingVal'),
+  livePreviewBtn: document.getElementById('livePreviewBtn'),
   btn: document.getElementById('masterBtn'),
   profile: document.getElementById('profile'),
   state: document.getElementById('state'),
@@ -160,6 +165,117 @@ function initLivePluginControls() {
     input.addEventListener('input', refresh);
     refresh();
   });
+  const rebuildInputs = [
+    els.modDynamicEq, els.modMultibandGlue, els.modStereoImager, els.modExciter, els.modTransient, els.modLimiter,
+    els.pDynamicEq, els.pMultibandGlue, els.pStereoWidth, els.pExciterDrive, els.pTransientAmount, els.pLimiterCeiling,
+  ];
+  rebuildInputs.forEach((el) => {
+    if (!el) return;
+    el.addEventListener('input', () => {
+      if (previewRunning) restartPreview();
+    });
+    el.addEventListener('change', () => {
+      if (previewRunning) restartPreview();
+    });
+  });
+}
+
+async function ensurePreviewBuffer() {
+  const file = els.file?.files?.[0];
+  if (!file) throw new Error('Selecciona un archivo para preview.');
+  if (!previewCtx) previewCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!previewBuffer) {
+    const arr = await file.arrayBuffer();
+    previewBuffer = await previewCtx.decodeAudioData(arr);
+  }
+}
+
+function stopPreview() {
+  if (previewSource) {
+    try { previewSource.stop(); } catch (_) {}
+    previewSource.disconnect();
+    previewSource = null;
+  }
+  previewRunning = false;
+  if (els.livePreviewBtn) els.livePreviewBtn.textContent = '🎧 Preview en vivo';
+}
+
+function buildPreviewChain(source) {
+  let node = source;
+  const tail = [];
+
+  if (els.modDynamicEq?.checked) {
+    const eq = previewCtx.createBiquadFilter();
+    eq.type = 'peaking';
+    eq.frequency.value = 280;
+    eq.Q.value = 1.0;
+    eq.gain.value = (Number(els.pDynamicEq?.value || 1) - 1) * -6;
+    node.connect(eq);
+    node = eq;
+  }
+
+  if (els.modMultibandGlue?.checked) {
+    const comp = previewCtx.createDynamicsCompressor();
+    comp.threshold.value = -24 + (Number(els.pMultibandGlue?.value || 1) * -4);
+    comp.ratio.value = 1.4 + (Number(els.pMultibandGlue?.value || 1) * 0.8);
+    comp.attack.value = 0.01;
+    comp.release.value = 0.2;
+    node.connect(comp);
+    node = comp;
+  }
+
+  if (els.modStereoImager?.checked) {
+    const pan = previewCtx.createStereoPanner();
+    pan.pan.value = Math.max(-1, Math.min(1, Number(els.pStereoWidth?.value || 0.1) * 1.5));
+    node.connect(pan);
+    node = pan;
+  }
+
+  if (els.modLimiter?.checked) {
+    const lim = previewCtx.createDynamicsCompressor();
+    lim.threshold.value = Number(els.pLimiterCeiling?.value || -1) - 1.5;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.003;
+    lim.release.value = 0.08;
+    node.connect(lim);
+    node = lim;
+  }
+
+  tail.push(node);
+  return tail;
+}
+
+async function restartPreview() {
+  stopPreview();
+  await startPreview();
+}
+
+async function startPreview() {
+  await ensurePreviewBuffer();
+  if (previewCtx.state === 'suspended') await previewCtx.resume();
+  previewSource = previewCtx.createBufferSource();
+  previewSource.buffer = previewBuffer;
+  const tail = buildPreviewChain(previewSource);
+  tail[tail.length - 1].connect(previewCtx.destination);
+  previewSource.start(0);
+  previewRunning = true;
+  if (els.livePreviewBtn) els.livePreviewBtn.textContent = '⏹ Detener preview';
+  previewSource.onended = () => {
+    previewRunning = false;
+    if (els.livePreviewBtn) els.livePreviewBtn.textContent = '🎧 Preview en vivo';
+  };
+}
+
+async function toggleLivePreview() {
+  try {
+    if (previewRunning) {
+      stopPreview();
+      return;
+    }
+    await startPreview();
+  } catch (err) {
+    setText(els.statusText, `Preview: ${err.message}`);
+  }
 }
 
 async function refreshPluginInfo() {
@@ -477,6 +593,8 @@ async function uploadFile() {
     console.error(err);
     setText(els.statusText, `Error al procesar: ${err.message}`);
   } finally {
+    stopPreview();
+    previewBuffer = null;
     els.btn.disabled = false;
   }
 }
@@ -529,6 +647,7 @@ async function pollJob(jobId, localStats) {
 }
 
 els.btn?.addEventListener('click', uploadFile);
+els.livePreviewBtn?.addEventListener('click', toggleLivePreview);
 initToolbar();
 initLivePluginControls();
 refreshPluginInfo();
