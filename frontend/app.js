@@ -20,6 +20,8 @@ const els = {
   modExciter: document.getElementById('modExciter'),
   modTransient: document.getElementById('modTransient'),
   modLimiter: document.getElementById('modLimiter'),
+  modPreviewEq: document.getElementById('modPreviewEq'),
+  modParallelMix: document.getElementById('modParallelMix'),
   fxAbMatch: document.getElementById('fxAbMatch'),
   fxSectionTp: document.getElementById('fxSectionTp'),
   fxAiStem: document.getElementById('fxAiStem'),
@@ -36,16 +38,36 @@ const els = {
   fxQaPreflight: document.getElementById('fxQaPreflight'),
   pDynamicEq: document.getElementById('pDynamicEq'),
   pDynamicEqVal: document.getElementById('pDynamicEqVal'),
+  pDynamicEqFreq: document.getElementById('pDynamicEqFreq'),
+  pDynamicEqFreqVal: document.getElementById('pDynamicEqFreqVal'),
+  pDynamicEqQ: document.getElementById('pDynamicEqQ'),
+  pDynamicEqQVal: document.getElementById('pDynamicEqQVal'),
   pMultibandGlue: document.getElementById('pMultibandGlue'),
   pMultibandGlueVal: document.getElementById('pMultibandGlueVal'),
+  pMultibandAttack: document.getElementById('pMultibandAttack'),
+  pMultibandAttackVal: document.getElementById('pMultibandAttackVal'),
+  pMultibandRelease: document.getElementById('pMultibandRelease'),
+  pMultibandReleaseVal: document.getElementById('pMultibandReleaseVal'),
   pStereoWidth: document.getElementById('pStereoWidth'),
   pStereoWidthVal: document.getElementById('pStereoWidthVal'),
+  pStereoPan: document.getElementById('pStereoPan'),
+  pStereoPanVal: document.getElementById('pStereoPanVal'),
   pExciterDrive: document.getElementById('pExciterDrive'),
   pExciterDriveVal: document.getElementById('pExciterDriveVal'),
+  pExciterTone: document.getElementById('pExciterTone'),
+  pExciterToneVal: document.getElementById('pExciterToneVal'),
   pTransientAmount: document.getElementById('pTransientAmount'),
   pTransientAmountVal: document.getElementById('pTransientAmountVal'),
+  pTransientMix: document.getElementById('pTransientMix'),
+  pTransientMixVal: document.getElementById('pTransientMixVal'),
   pLimiterCeiling: document.getElementById('pLimiterCeiling'),
   pLimiterCeilingVal: document.getElementById('pLimiterCeilingVal'),
+  pLimiterRelease: document.getElementById('pLimiterRelease'),
+  pLimiterReleaseVal: document.getElementById('pLimiterReleaseVal'),
+  pParallelMix: document.getElementById('pParallelMix'),
+  pParallelMixVal: document.getElementById('pParallelMixVal'),
+  pOutputGain: document.getElementById('pOutputGain'),
+  pOutputGainVal: document.getElementById('pOutputGainVal'),
   eqLow: document.getElementById('eqLow'),
   eqLowVal: document.getElementById('eqLowVal'),
   eqLowMid: document.getElementById('eqLowMid'),
@@ -168,11 +190,21 @@ function initToolbar() {
 function initLivePluginControls() {
   const controls = [
     [els.pDynamicEq, els.pDynamicEqVal, 2],
+    [els.pDynamicEqFreq, els.pDynamicEqFreqVal, 0],
+    [els.pDynamicEqQ, els.pDynamicEqQVal, 2],
     [els.pMultibandGlue, els.pMultibandGlueVal, 2],
+    [els.pMultibandAttack, els.pMultibandAttackVal, 3],
+    [els.pMultibandRelease, els.pMultibandReleaseVal, 3],
     [els.pStereoWidth, els.pStereoWidthVal, 2],
+    [els.pStereoPan, els.pStereoPanVal, 2],
     [els.pExciterDrive, els.pExciterDriveVal, 2],
+    [els.pExciterTone, els.pExciterToneVal, 0],
     [els.pTransientAmount, els.pTransientAmountVal, 2],
+    [els.pTransientMix, els.pTransientMixVal, 2],
     [els.pLimiterCeiling, els.pLimiterCeilingVal, 2],
+    [els.pLimiterRelease, els.pLimiterReleaseVal, 3],
+    [els.pParallelMix, els.pParallelMixVal, 2],
+    [els.pOutputGain, els.pOutputGainVal, 2],
     [els.eqLow, els.eqLowVal, 1, ' dB'],
     [els.eqLowMid, els.eqLowMidVal, 1, ' dB'],
     [els.eqMid, els.eqMidVal, 1, ' dB'],
@@ -186,8 +218,14 @@ function initLivePluginControls() {
     refresh();
   });
   const rebuildInputs = [
-    els.modDynamicEq, els.modMultibandGlue, els.modStereoImager, els.modExciter, els.modTransient, els.modLimiter,
-    els.pDynamicEq, els.pMultibandGlue, els.pStereoWidth, els.pExciterDrive, els.pTransientAmount, els.pLimiterCeiling,
+    els.modDynamicEq, els.modMultibandGlue, els.modStereoImager, els.modExciter, els.modTransient, els.modLimiter, els.modPreviewEq, els.modParallelMix,
+    els.pDynamicEq, els.pDynamicEqFreq, els.pDynamicEqQ,
+    els.pMultibandGlue, els.pMultibandAttack, els.pMultibandRelease,
+    els.pStereoWidth, els.pStereoPan,
+    els.pExciterDrive, els.pExciterTone,
+    els.pTransientAmount, els.pTransientMix,
+    els.pLimiterCeiling, els.pLimiterRelease,
+    els.pParallelMix, els.pOutputGain,
     els.eqLow, els.eqLowMid, els.eqMid, els.eqHighMid, els.eqHigh,
     els.previewMode,
   ];
@@ -270,12 +308,13 @@ function applyPreviewMode(node) {
 
 function buildPreviewChain(source) {
   let node = applyPreviewMode(source);
+  const dryNode = node;
 
   if (els.modDynamicEq?.checked) {
     const eq = previewCtx.createBiquadFilter();
     eq.type = 'peaking';
-    eq.frequency.value = 280;
-    eq.Q.value = 1.0;
+    eq.frequency.value = Number(els.pDynamicEqFreq?.value || 280);
+    eq.Q.value = Number(els.pDynamicEqQ?.value || 1.0);
     eq.gain.value = (Number(els.pDynamicEq?.value || 1) - 1) * -6;
     node.connect(eq);
     node = eq;
@@ -285,46 +324,88 @@ function buildPreviewChain(source) {
     const comp = previewCtx.createDynamicsCompressor();
     comp.threshold.value = -24 + (Number(els.pMultibandGlue?.value || 1) * -4);
     comp.ratio.value = 1.4 + (Number(els.pMultibandGlue?.value || 1) * 0.8);
-    comp.attack.value = 0.01;
-    comp.release.value = 0.2;
+    comp.attack.value = Number(els.pMultibandAttack?.value || 0.01);
+    comp.release.value = Number(els.pMultibandRelease?.value || 0.2);
     node.connect(comp);
     node = comp;
   }
 
   if (els.modStereoImager?.checked) {
     const pan = previewCtx.createStereoPanner();
-    pan.pan.value = Math.max(-1, Math.min(1, Number(els.pStereoWidth?.value || 0.1) * 1.5));
+    const widthPan = Number(els.pStereoWidth?.value || 0.1) * 1.5;
+    pan.pan.value = Math.max(-1, Math.min(1, widthPan + Number(els.pStereoPan?.value || 0)));
     node.connect(pan);
     node = pan;
   }
 
-  const eqBands = [
-    ['lowshelf', 80, Number(els.eqLow?.value || 0)],
-    ['peaking', 250, Number(els.eqLowMid?.value || 0)],
-    ['peaking', 1000, Number(els.eqMid?.value || 0)],
-    ['peaking', 4000, Number(els.eqHighMid?.value || 0)],
-    ['highshelf', 10000, Number(els.eqHigh?.value || 0)],
-  ];
-  eqBands.forEach(([type, frequency, gain]) => {
-    if (Math.abs(gain) < 0.05) return;
-    const eq = previewCtx.createBiquadFilter();
-    eq.type = type;
-    eq.frequency.value = frequency;
-    eq.Q.value = type === 'peaking' ? 0.85 : 0.7;
-    eq.gain.value = gain;
-    node.connect(eq);
-    node = eq;
-  });
+  if (els.modPreviewEq?.checked) {
+    const eqBands = [
+      ['lowshelf', 80, Number(els.eqLow?.value || 0)],
+      ['peaking', 250, Number(els.eqLowMid?.value || 0)],
+      ['peaking', 1000, Number(els.eqMid?.value || 0)],
+      ['peaking', 4000, Number(els.eqHighMid?.value || 0)],
+      ['highshelf', 10000, Number(els.eqHigh?.value || 0)],
+    ];
+    eqBands.forEach(([type, frequency, gain]) => {
+      if (Math.abs(gain) < 0.05) return;
+      const eq = previewCtx.createBiquadFilter();
+      eq.type = type;
+      eq.frequency.value = frequency;
+      eq.Q.value = type === 'peaking' ? 0.85 : 0.7;
+      eq.gain.value = gain;
+      node.connect(eq);
+      node = eq;
+    });
+  }
+
+  if (els.modExciter?.checked) {
+    const exciter = previewCtx.createBiquadFilter();
+    exciter.type = 'highshelf';
+    exciter.frequency.value = Number(els.pExciterTone?.value || 6000);
+    exciter.gain.value = Number(els.pExciterDrive?.value || 8) * 0.6;
+    node.connect(exciter);
+    node = exciter;
+  }
+
+  if (els.modTransient?.checked) {
+    const transient = previewCtx.createDynamicsCompressor();
+    transient.threshold.value = -18 + ((1 - Number(els.pTransientAmount?.value || 0.95)) * 50);
+    transient.ratio.value = 2 + ((1 - Number(els.pTransientAmount?.value || 0.95)) * 8);
+    transient.attack.value = 0.001;
+    transient.release.value = 0.05;
+    node.connect(transient);
+    node = transient;
+  }
 
   if (els.modLimiter?.checked) {
     const lim = previewCtx.createDynamicsCompressor();
     lim.threshold.value = Number(els.pLimiterCeiling?.value || -1) - 1.5;
     lim.ratio.value = 20;
     lim.attack.value = 0.003;
-    lim.release.value = 0.08;
+    lim.release.value = Number(els.pLimiterRelease?.value || 0.08);
     node.connect(lim);
     node = lim;
   }
+
+  if (els.modParallelMix?.checked) {
+    const dryGain = previewCtx.createGain();
+    const wetGain = previewCtx.createGain();
+    const mixOut = previewCtx.createGain();
+    const wetMix = Math.max(0, Math.min(1, Number(els.pParallelMix?.value || 1)));
+    dryGain.gain.value = 1 - wetMix;
+    wetGain.gain.value = wetMix * Number(els.pTransientMix?.value || 1);
+    dryNode.connect(dryGain);
+    node.connect(wetGain);
+    dryGain.connect(mixOut);
+    wetGain.connect(mixOut);
+    node = mixOut;
+    previewGraphNodes.push(dryGain, wetGain, mixOut);
+  }
+
+  const outGain = previewCtx.createGain();
+  outGain.gain.value = 10 ** (Number(els.pOutputGain?.value || 0) / 20);
+  node.connect(outGain);
+  node = outGain;
 
   previewGraphNodes.push(node);
   return node;
@@ -653,11 +734,21 @@ async function uploadFile() {
     },
     plugin_params: {
       dynamic_eq_amount: Number(els.pDynamicEq?.value || 1.0),
+      dynamic_eq_freq_hz: Number(els.pDynamicEqFreq?.value || 280),
+      dynamic_eq_q: Number(els.pDynamicEqQ?.value || 1.0),
       multiband_glue_strength: Number(els.pMultibandGlue?.value || 1.0),
+      multiband_attack_s: Number(els.pMultibandAttack?.value || 0.01),
+      multiband_release_s: Number(els.pMultibandRelease?.value || 0.2),
       stereo_width_amount: Number(els.pStereoWidth?.value || 0.10),
+      stereo_pan: Number(els.pStereoPan?.value || 0),
       exciter_drive: Number(els.pExciterDrive?.value || 8.0),
+      exciter_tone_hz: Number(els.pExciterTone?.value || 6000),
       transient_support: Number(els.pTransientAmount?.value || 0.95),
+      transient_mix: Number(els.pTransientMix?.value || 1.0),
       limiter_ceiling_dbtp: Number(els.pLimiterCeiling?.value || -1.0),
+      limiter_release_s: Number(els.pLimiterRelease?.value || 0.08),
+      preview_parallel_mix: Number(els.pParallelMix?.value || 1.0),
+      output_gain_db: Number(els.pOutputGain?.value || 0),
     },
     feature_flags: {
       ab_match: Boolean(els.fxAbMatch?.checked),

@@ -107,29 +107,73 @@
         </div>
 
         <div class="section-title">Control en vivo de plugins</div>
+        <div class="module-grid">
+          <label title="Inserta o bypass total de ecualizador de preview."><input id="modPreviewEq" type="checkbox" checked> Insert/BYPASS EQ Preview</label>
+          <label title="Inserta o bypass control paralelo seco/húmedo."><input id="modParallelMix" type="checkbox" checked> Insert/BYPASS Dry-Wet</label>
+        </div>
         <div class="control-group">
           <label for="pDynamicEq">Dynamic EQ Amount <strong id="pDynamicEqVal">1.00</strong></label>
           <input id="pDynamicEq" type="range" min="0" max="2" step="0.01" value="1.00">
+        </div>
+        <div class="control-group">
+          <label for="pDynamicEqFreq">Dynamic EQ Freq (Hz) <strong id="pDynamicEqFreqVal">280</strong></label>
+          <input id="pDynamicEqFreq" type="range" min="120" max="1200" step="1" value="280">
+        </div>
+        <div class="control-group">
+          <label for="pDynamicEqQ">Dynamic EQ Q <strong id="pDynamicEqQVal">1.00</strong></label>
+          <input id="pDynamicEqQ" type="range" min="0.3" max="3.0" step="0.01" value="1.00">
         </div>
         <div class="control-group">
           <label for="pMultibandGlue">Multiband Glue Strength <strong id="pMultibandGlueVal">1.00</strong></label>
           <input id="pMultibandGlue" type="range" min="0" max="2" step="0.01" value="1.00">
         </div>
         <div class="control-group">
+          <label for="pMultibandAttack">Multiband Attack (s) <strong id="pMultibandAttackVal">0.010</strong></label>
+          <input id="pMultibandAttack" type="range" min="0.001" max="0.050" step="0.001" value="0.010">
+        </div>
+        <div class="control-group">
+          <label for="pMultibandRelease">Multiband Release (s) <strong id="pMultibandReleaseVal">0.200</strong></label>
+          <input id="pMultibandRelease" type="range" min="0.050" max="0.800" step="0.010" value="0.200">
+        </div>
+        <div class="control-group">
           <label for="pStereoWidth">Stereo Width Amount <strong id="pStereoWidthVal">0.10</strong></label>
           <input id="pStereoWidth" type="range" min="0" max="0.6" step="0.01" value="0.10">
+        </div>
+        <div class="control-group">
+          <label for="pStereoPan">Stereo Pan <strong id="pStereoPanVal">0.00</strong></label>
+          <input id="pStereoPan" type="range" min="-1" max="1" step="0.01" value="0">
         </div>
         <div class="control-group">
           <label for="pExciterDrive">Exciter Drive <strong id="pExciterDriveVal">8.00</strong></label>
           <input id="pExciterDrive" type="range" min="1" max="12" step="0.1" value="8.0">
         </div>
         <div class="control-group">
+          <label for="pExciterTone">Exciter Tone (Hz) <strong id="pExciterToneVal">6000</strong></label>
+          <input id="pExciterTone" type="range" min="3000" max="12000" step="10" value="6000">
+        </div>
+        <div class="control-group">
           <label for="pTransientAmount">Transient Support <strong id="pTransientAmountVal">0.95</strong></label>
           <input id="pTransientAmount" type="range" min="0.85" max="0.99" step="0.01" value="0.95">
         </div>
         <div class="control-group">
+          <label for="pTransientMix">Transient Mix <strong id="pTransientMixVal">1.00</strong></label>
+          <input id="pTransientMix" type="range" min="0" max="1" step="0.01" value="1.00">
+        </div>
+        <div class="control-group">
           <label for="pLimiterCeiling">Limiter Ceiling (dBTP) <strong id="pLimiterCeilingVal">-1.00</strong></label>
           <input id="pLimiterCeiling" type="range" min="-2" max="-0.1" step="0.1" value="-1.0">
+        </div>
+        <div class="control-group">
+          <label for="pLimiterRelease">Limiter Release (s) <strong id="pLimiterReleaseVal">0.080</strong></label>
+          <input id="pLimiterRelease" type="range" min="0.020" max="0.300" step="0.005" value="0.080">
+        </div>
+        <div class="control-group">
+          <label for="pParallelMix">Parallel Dry/Wet <strong id="pParallelMixVal">1.00</strong></label>
+          <input id="pParallelMix" type="range" min="0" max="1" step="0.01" value="1.00">
+        </div>
+        <div class="control-group">
+          <label for="pOutputGain">Output Gain (dB) <strong id="pOutputGainVal">0.00</strong></label>
+          <input id="pOutputGain" type="range" min="-12" max="12" step="0.1" value="0">
         </div>
 
         <div class="section-title">Ecualizador integrado (tiempo real)</div>
