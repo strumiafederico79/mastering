@@ -6,6 +6,9 @@ let previewGraphNodes = [];
 let previewRunning = false;
 let currentJobId = null;
 let pollingPaused = false;
+let liveSyncTimer = null;
+let liveSyncInFlight = false;
+let liveSyncQueued = false;
 
 const els = {
   file: document.getElementById('file'),
@@ -13,7 +16,6 @@ const els = {
   assistantMode: document.getElementById('assistantMode'),
   genrePreset: document.getElementById('genrePreset'),
   targetLufs: document.getElementById('targetLufs'),
-  stemMode: document.getElementById('stemMode'),
   deliveryTarget: document.getElementById('deliveryTarget'),
   intensity: document.getElementById('intensity'),
   modDynamicEq: document.getElementById('modDynamicEq'),
@@ -28,7 +30,6 @@ const els = {
   liveReset: document.getElementById('liveReset'),
   fxAbMatch: document.getElementById('fxAbMatch'),
   fxSectionTp: document.getElementById('fxSectionTp'),
-  fxAiStem: document.getElementById('fxAiStem'),
   fxHumanNotes: document.getElementById('fxHumanNotes'),
   fxDeesser: document.getElementById('fxDeesser'),
   fxPhaseFix: document.getElementById('fxPhaseFix'),
@@ -72,6 +73,12 @@ const els = {
   pParallelMixVal: document.getElementById('pParallelMixVal'),
   pOutputGain: document.getElementById('pOutputGain'),
   pOutputGainVal: document.getElementById('pOutputGainVal'),
+  pLowCutHz: document.getElementById('pLowCutHz'),
+  pLowCutHzVal: document.getElementById('pLowCutHzVal'),
+  pCompThreshold: document.getElementById('pCompThreshold'),
+  pCompThresholdVal: document.getElementById('pCompThresholdVal'),
+  pCompRatio: document.getElementById('pCompRatio'),
+  pCompRatioVal: document.getElementById('pCompRatioVal'),
   eqLow: document.getElementById('eqLow'),
   eqLowVal: document.getElementById('eqLowVal'),
   eqLowMid: document.getElementById('eqLowMid'),
@@ -83,6 +90,7 @@ const els = {
   eqHigh: document.getElementById('eqHigh'),
   eqHighVal: document.getElementById('eqHighVal'),
   previewMode: document.getElementById('previewMode'),
+  pollIntervalMs: document.getElementById('pollIntervalMs'),
   livePlayBtn: document.getElementById('livePlayBtn'),
   livePauseBtn: document.getElementById('livePauseBtn'),
   liveStopBtn: document.getElementById('liveStopBtn'),
@@ -92,6 +100,9 @@ const els = {
   pausePollBtn: document.getElementById('pausePollBtn'),
   resumePollBtn: document.getElementById('resumePollBtn'),
   cancelJobBtn: document.getElementById('cancelJobBtn'),
+  applyLiveBtn: document.getElementById('applyLiveBtn'),
+  autoLiveSync: document.getElementById('autoLiveSync'),
+  autoLiveSyncState: document.getElementById('autoLiveSyncState'),
   profile: document.getElementById('profile'),
   state: document.getElementById('state'),
   pluginBackend: document.getElementById('pluginBackend'),
@@ -111,13 +122,6 @@ const els = {
   downloads: document.getElementById('downloads'),
   downloadWav: document.getElementById('downloadWav'),
   downloadMp3: document.getElementById('downloadMp3'),
-  downloadAcapellaWav: document.getElementById('downloadAcapellaWav'),
-  downloadAcapellaMp3: document.getElementById('downloadAcapellaMp3'),
-  downloadInstrumentalWav: document.getElementById('downloadInstrumentalWav'),
-  downloadInstrumentalMp3: document.getElementById('downloadInstrumentalMp3'),
-  downloadDrumsMp3: document.getElementById('downloadDrumsMp3'),
-  downloadBassMp3: document.getElementById('downloadBassMp3'),
-  downloadOtherMp3: document.getElementById('downloadOtherMp3'),
   meterDynamics: document.getElementById('meterDynamics'),
   meterStereo: document.getElementById('meterStereo'),
   meterTone: document.getElementById('meterTone'),
@@ -213,6 +217,9 @@ function initLivePluginControls() {
     [els.pLimiterRelease, els.pLimiterReleaseVal, 3],
     [els.pParallelMix, els.pParallelMixVal, 2],
     [els.pOutputGain, els.pOutputGainVal, 2],
+    [els.pLowCutHz, els.pLowCutHzVal, 0],
+    [els.pCompThreshold, els.pCompThresholdVal, 1],
+    [els.pCompRatio, els.pCompRatioVal, 2],
     [els.eqLow, els.eqLowVal, 1, ' dB'],
     [els.eqLowMid, els.eqLowMidVal, 1, ' dB'],
     [els.eqMid, els.eqMidVal, 1, ' dB'],
@@ -233,7 +240,7 @@ function initLivePluginControls() {
     els.pExciterDrive, els.pExciterTone,
     els.pTransientAmount, els.pTransientMix,
     els.pLimiterCeiling, els.pLimiterRelease,
-    els.pParallelMix, els.pOutputGain,
+    els.pParallelMix, els.pOutputGain, els.pLowCutHz, els.pCompThreshold, els.pCompRatio,
     els.eqLow, els.eqLowMid, els.eqMid, els.eqHighMid, els.eqHigh,
     els.previewMode,
   ];
@@ -242,10 +249,12 @@ function initLivePluginControls() {
     el.addEventListener('input', () => {
       refreshLiveSnapshot();
       if (previewRunning) restartPreview();
+      scheduleAutoLiveSync();
     });
     el.addEventListener('change', () => {
       refreshLiveSnapshot();
       if (previewRunning) restartPreview();
+      scheduleAutoLiveSync();
     });
   });
 }
@@ -351,11 +360,6 @@ function applyPreviewMode(node) {
     connectMix(1, 0, 0.5);
     connectMix(0, 1, 0.5);
     connectMix(1, 1, 0.5);
-  } else if (mode === 'instrumental_only') {
-    connectMix(0, 0, 1.0);
-    connectMix(1, 0, -1.0);
-    connectMix(0, 1, -1.0);
-    connectMix(1, 1, 1.0);
   }
 
   previewGraphNodes.push(splitter, merger);
@@ -365,6 +369,13 @@ function applyPreviewMode(node) {
 function buildPreviewChain(source) {
   let node = applyPreviewMode(source);
   const dryNode = node;
+
+  const lowCut = previewCtx.createBiquadFilter();
+  lowCut.type = 'highpass';
+  lowCut.frequency.value = Number(els.pLowCutHz?.value || 25);
+  lowCut.Q.value = 0.707;
+  node.connect(lowCut);
+  node = lowCut;
 
   if (els.modDynamicEq?.checked) {
     const eq = previewCtx.createBiquadFilter();
@@ -378,8 +389,8 @@ function buildPreviewChain(source) {
 
   if (els.modMultibandGlue?.checked) {
     const comp = previewCtx.createDynamicsCompressor();
-    comp.threshold.value = -24 + (Number(els.pMultibandGlue?.value || 1) * -4);
-    comp.ratio.value = 1.4 + (Number(els.pMultibandGlue?.value || 1) * 0.8);
+    comp.threshold.value = Number(els.pCompThreshold?.value || -18);
+    comp.ratio.value = Number(els.pCompRatio?.value || 1.8);
     comp.attack.value = Number(els.pMultibandAttack?.value || 0.01);
     comp.release.value = Number(els.pMultibandRelease?.value || 0.2);
     node.connect(comp);
@@ -692,7 +703,6 @@ async function analyzeLocalAudio(file) {
 function buildAdvancedPlan(data, localStats) {
   const genre = els.genrePreset.value;
   const targetLufs = Number(els.targetLufs.value);
-  const stemMode = els.stemMode?.value || 'full_mix';
   const deliveryTarget = els.deliveryTarget?.value || 'streaming';
   const intensity = Number(els.intensity.value);
   const mode = els.assistantMode.value;
@@ -701,11 +711,6 @@ function buildAdvancedPlan(data, localStats) {
   const plan = [];
   plan.push(`Human adaptive mode ${mode}/${genre}: decisión guiada por contexto musical real.`);
   plan.push(`Target final: ${targetLufs} LUFS con limitación transparente y control true-peak preventivo.`);
-  if (stemMode !== 'full_mix') {
-    plan.push(stemMode === 'vocals_only'
-      ? 'Stem mode activo: priorizar voz centrada para referencia vocal.'
-      : 'Stem mode activo: atenuar centro para versión instrumental rápida.');
-  }
   if (deliveryTarget === 'cd_master') {
     plan.push('Entrega CD: cadena extra de glue humano + loudness competitivo estilo disco físico.');
   }
@@ -776,7 +781,6 @@ async function uploadFile() {
   const liveSettings = collectLiveSettings();
   form.append('options_json', JSON.stringify({
     target_lufs: Number(els.targetLufs.value),
-    stem_mode: els.stemMode?.value || 'full_mix',
     delivery_target: els.deliveryTarget?.value || 'streaming',
     intensity: Number(els.intensity.value),
     stereo_amount: Math.min(0.6, Math.max(0, Number(els.intensity.value) / 200)),
@@ -799,7 +803,6 @@ async function uploadFile() {
     feature_flags: {
       ab_match: Boolean(els.fxAbMatch?.checked),
       section_true_peak_guard: Boolean(els.fxSectionTp?.checked),
-      ai_stem_mastering: Boolean(els.fxAiStem?.checked),
       advanced_human_notes: Boolean(els.fxHumanNotes?.checked),
       dynamic_deesser: Boolean(els.fxDeesser?.checked),
       phase_mono_fix: Boolean(els.fxPhaseFix?.checked),
@@ -812,7 +815,36 @@ async function uploadFile() {
       smart_ms_sculptor: Boolean(els.fxMsSculptor?.checked),
       qa_preflight: Boolean(els.fxQaPreflight?.checked),
     },
-  }));
+  };
+}
+
+async function uploadFile() {
+  const file = els.file.files[0];
+  if (!file) {
+    setText(els.statusText, 'Selecciona un archivo primero.');
+    return;
+  }
+
+  renderWave(file);
+  els.btn.disabled = true;
+  setText(els.statusText, 'Analizando track localmente...');
+  els.downloads?.classList.add('hidden');
+  if (els.progressBar) els.progressBar.style.width = '3%';
+
+  let localStats = null;
+  try {
+    localStats = await analyzeLocalAudio(file);
+    setMeter(els.meterDynamics, els.meterDynamicsValue, localStats.dynamicMeter, `${localStats.crestDb.toFixed(1)} dB crest`);
+    setMeter(els.meterStereo, els.meterStereoValue, localStats.stereoPercent, `${localStats.stereoPercent}% side energy`);
+    setMeter(els.meterTone, els.meterToneValue, localStats.toneMeter, 'Balance preliminar listo');
+  } catch (err) {
+    console.warn('No se pudo analizar localmente el audio', err);
+  }
+
+  const form = new FormData();
+  form.append('file', file);
+  form.append('mode', els.assistantMode.value);
+  form.append('options_json', JSON.stringify(buildCurrentOptionsPayload()));
 
   try {
     setText(els.statusText, 'Subiendo al motor de mastering...');
@@ -873,13 +905,6 @@ async function pollJob(jobId, localStats) {
     if (data.status === 'done') {
       if (els.downloadWav) els.downloadWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=master`;
       if (els.downloadMp3) els.downloadMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=master`;
-      if (els.downloadAcapellaWav) els.downloadAcapellaWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=acapella`;
-      if (els.downloadAcapellaMp3) els.downloadAcapellaMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=acapella`;
-      if (els.downloadInstrumentalWav) els.downloadInstrumentalWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=instrumental`;
-      if (els.downloadInstrumentalMp3) els.downloadInstrumentalMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=instrumental`;
-      if (els.downloadDrumsMp3) els.downloadDrumsMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=drums`;
-      if (els.downloadBassMp3) els.downloadBassMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=bass`;
-      if (els.downloadOtherMp3) els.downloadOtherMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=other`;
       els.downloads?.classList.remove('hidden');
       setText(els.statusText, 'Master listo. Descarga disponible.');
       return;
@@ -891,7 +916,8 @@ async function pollJob(jobId, localStats) {
     if (data.status === 'error') {
       throw new Error(data.error || 'Error en mastering');
     }
-    await new Promise(r => setTimeout(r, 2000));
+    const pollEveryMs = Math.max(300, Number(els.pollIntervalMs?.value || 2000));
+    await new Promise(r => setTimeout(r, pollEveryMs));
   }
   throw new Error('Timeout esperando el job.');
 }
@@ -922,6 +948,49 @@ async function cancelCurrentJob() {
   }
 }
 
+async function applyLiveChangesToJob() {
+  await pushLiveOptions({ silent: false });
+}
+
+function scheduleAutoLiveSync() {
+  if (!els.autoLiveSync?.checked || !currentJobId) return;
+  if (liveSyncTimer) clearTimeout(liveSyncTimer);
+  if (els.autoLiveSyncState) els.autoLiveSyncState.textContent = 'Sincronizando cambios...';
+  liveSyncTimer = setTimeout(() => {
+    pushLiveOptions({ silent: true });
+  }, 250);
+}
+
+async function pushLiveOptions({ silent = false } = {}) {
+  if (!currentJobId) {
+    if (!silent) setText(els.statusText, 'No hay render activo para aplicar cambios live.');
+    return;
+  }
+  if (liveSyncInFlight) {
+    liveSyncQueued = true;
+    return;
+  }
+  try {
+    liveSyncInFlight = true;
+    const form = new FormData();
+    form.append('options_json', JSON.stringify(buildCurrentOptionsPayload()));
+    const res = await fetch(`/api/jobs/${currentJobId}/live-options`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    if (!silent) setText(els.statusText, 'Cambios live enviados al motor.');
+    if (els.autoLiveSyncState) els.autoLiveSyncState.textContent = 'Auto live sincronizado.';
+  } catch (err) {
+    if (!silent) setText(els.statusText, `No se aplicaron cambios live: ${err.message}`);
+    if (els.autoLiveSyncState) els.autoLiveSyncState.textContent = `Error live: ${err.message}`;
+  } finally {
+    liveSyncInFlight = false;
+    if (liveSyncQueued) {
+      liveSyncQueued = false;
+      scheduleAutoLiveSync();
+    }
+  }
+}
+
 els.btn?.addEventListener('click', uploadFile);
 els.livePlayBtn?.addEventListener('click', handleLivePlay);
 els.livePauseBtn?.addEventListener('click', pausePreview);
@@ -929,6 +998,14 @@ els.liveStopBtn?.addEventListener('click', stopPreview);
 els.pausePollBtn?.addEventListener('click', pausePolling);
 els.resumePollBtn?.addEventListener('click', resumePolling);
 els.cancelJobBtn?.addEventListener('click', cancelCurrentJob);
+els.applyLiveBtn?.addEventListener('click', applyLiveChangesToJob);
+els.autoLiveSync?.addEventListener('change', () => {
+  if (els.autoLiveSyncState) {
+    els.autoLiveSyncState.textContent = els.autoLiveSync.checked
+      ? 'Auto live activado.'
+      : 'Auto live pausado.';
+  }
+});
 els.livePreviewAudio?.addEventListener('play', async () => {
   if (previewCtx?.state === 'suspended') await previewCtx.resume();
   await restartPreview();
