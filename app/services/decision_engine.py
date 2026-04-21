@@ -225,6 +225,11 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         exciter_drive = float(plugin_params.get("exciter_drive", 8.0))
         transient_support = float(plugin_params.get("transient_support", 0.95))
         limiter_ceiling = float(plugin_params.get("limiter_ceiling_dbtp", decision["limiter_ceiling_dbtp"]))
+        eq_low = float(plugin_params.get("eq_low_db", 0.0))
+        eq_low_mid = float(plugin_params.get("eq_low_mid_db", 0.0))
+        eq_mid = float(plugin_params.get("eq_mid_db", 0.0))
+        eq_high_mid = float(plugin_params.get("eq_high_mid_db", 0.0))
+        eq_high = float(plugin_params.get("eq_high_db", 0.0))
 
         decision["mud_cut_db"] = max(0.0, decision["mud_cut_db"] * max(0.0, min(2.0, dynamic_eq_amount)))
         decision["multiband_glue_strength"] = max(0.0, min(2.0, glue_strength))

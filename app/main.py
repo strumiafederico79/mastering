@@ -83,6 +83,30 @@ def get_job(job_id: str):
         raise HTTPException(status_code=404, detail="Job no encontrado.") from exc
     return JobStatusResponse(**payload)
 
+@app.post("/api/jobs/{job_id}/cancel")
+def cancel_job(job_id: str):
+    try:
+        payload = read_job(job_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Job no encontrado.") from exc
+
+    task_id = payload.get("task_id")
+    status = payload.get("status")
+    if status in {"done", "error", "cancelled"}:
+        return {"ok": True, "job_id": job_id, "status": status, "message": payload.get("message")}
+    if not task_id:
+        raise HTTPException(status_code=409, detail="Job sin task_id asociado.")
+
+    celery_app.control.revoke(task_id, terminate=True)
+    payload.update({
+        "status": "cancelled",
+        "progress": payload.get("progress", 0),
+        "message": "Proceso cancelado por el usuario.",
+        "error": None,
+    })
+    write_job(job_id, payload)
+    return {"ok": True, "job_id": job_id, "status": "cancelled", "message": payload.get("message")}
+
 @app.get("/api/jobs/{job_id}/download")
 def download_job_output(
     job_id: str,
