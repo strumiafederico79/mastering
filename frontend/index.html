@@ -170,6 +170,18 @@
           <label for="pOutputGain">Output Gain (dB) <strong id="pOutputGainVal">0.00</strong></label>
           <input id="pOutputGain" type="range" min="-12" max="12" step="0.1" value="0">
         </div>
+        <div class="control-group">
+          <label for="pLowCutHz">Low Cut (Hz) <strong id="pLowCutHzVal">25</strong></label>
+          <input id="pLowCutHz" type="range" min="20" max="60" step="1" value="25">
+        </div>
+        <div class="control-group">
+          <label for="pCompThreshold">Comp Threshold (dB) <strong id="pCompThresholdVal">-18.0</strong></label>
+          <input id="pCompThreshold" type="range" min="-30" max="-6" step="0.1" value="-18.0">
+        </div>
+        <div class="control-group">
+          <label for="pCompRatio">Comp Ratio <strong id="pCompRatioVal">1.80</strong></label>
+          <input id="pCompRatio" type="range" min="1.0" max="4.0" step="0.05" value="1.80">
+        </div>
 
         <div class="section-title">Ecualizador integrado (tiempo real)</div>
         <div class="assistant-grid">
@@ -200,6 +212,7 @@
           <button id="pausePollBtn" type="button">⏸ Pausar estado</button>
           <button id="resumePollBtn" type="button">▶ Reanudar estado</button>
           <button id="cancelJobBtn" type="button">🛑 Cancelar render</button>
+          <button id="applyLiveBtn" type="button">⚡ Aplicar cambios live</button>
         </div>
 
         <div class="wave-card">

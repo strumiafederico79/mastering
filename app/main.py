@@ -107,6 +107,39 @@ def cancel_job(job_id: str):
     write_job(job_id, payload)
     return {"ok": True, "job_id": job_id, "status": "cancelled", "message": payload.get("message")}
 
+@app.post("/api/jobs/{job_id}/live-options")
+def update_live_options(job_id: str, options_json: str = Form("{}")):
+    try:
+        payload = read_job(job_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Job no encontrado.") from exc
+
+    if payload.get("status") not in {"queued", "processing"}:
+        raise HTTPException(status_code=409, detail="Solo puedes editar jobs en cola o procesando.")
+
+    try:
+        incoming = json.loads(options_json or "{}")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="options_json inválido.") from exc
+    if not isinstance(incoming, dict):
+        raise HTTPException(status_code=400, detail="options_json debe ser un objeto JSON.")
+
+    current = payload.get("options", {})
+    if not isinstance(current, dict):
+        current = {}
+
+    merged = {**current, **incoming}
+    for nested_key in ("plugin_params", "feature_flags", "modules"):
+        prev_nested = current.get(nested_key, {})
+        incoming_nested = incoming.get(nested_key, {})
+        if isinstance(prev_nested, dict) and isinstance(incoming_nested, dict):
+            merged[nested_key] = {**prev_nested, **incoming_nested}
+
+    payload["options"] = merged
+    payload["message"] = "Cambios en vivo guardados. Se aplicarán en la siguiente etapa de render."
+    write_job(job_id, payload)
+    return {"ok": True, "job_id": job_id, "status": payload.get("status"), "options": merged}
+
 @app.get("/api/jobs/{job_id}/download")
 def download_job_output(
     job_id: str,

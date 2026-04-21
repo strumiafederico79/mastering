@@ -70,6 +70,12 @@ const els = {
   pParallelMixVal: document.getElementById('pParallelMixVal'),
   pOutputGain: document.getElementById('pOutputGain'),
   pOutputGainVal: document.getElementById('pOutputGainVal'),
+  pLowCutHz: document.getElementById('pLowCutHz'),
+  pLowCutHzVal: document.getElementById('pLowCutHzVal'),
+  pCompThreshold: document.getElementById('pCompThreshold'),
+  pCompThresholdVal: document.getElementById('pCompThresholdVal'),
+  pCompRatio: document.getElementById('pCompRatio'),
+  pCompRatioVal: document.getElementById('pCompRatioVal'),
   eqLow: document.getElementById('eqLow'),
   eqLowVal: document.getElementById('eqLowVal'),
   eqLowMid: document.getElementById('eqLowMid'),
@@ -91,6 +97,7 @@ const els = {
   pausePollBtn: document.getElementById('pausePollBtn'),
   resumePollBtn: document.getElementById('resumePollBtn'),
   cancelJobBtn: document.getElementById('cancelJobBtn'),
+  applyLiveBtn: document.getElementById('applyLiveBtn'),
   profile: document.getElementById('profile'),
   state: document.getElementById('state'),
   pluginBackend: document.getElementById('pluginBackend'),
@@ -205,6 +212,9 @@ function initLivePluginControls() {
     [els.pLimiterRelease, els.pLimiterReleaseVal, 3],
     [els.pParallelMix, els.pParallelMixVal, 2],
     [els.pOutputGain, els.pOutputGainVal, 2],
+    [els.pLowCutHz, els.pLowCutHzVal, 0],
+    [els.pCompThreshold, els.pCompThresholdVal, 1],
+    [els.pCompRatio, els.pCompRatioVal, 2],
     [els.eqLow, els.eqLowVal, 1, ' dB'],
     [els.eqLowMid, els.eqLowMidVal, 1, ' dB'],
     [els.eqMid, els.eqMidVal, 1, ' dB'],
@@ -225,7 +235,7 @@ function initLivePluginControls() {
     els.pExciterDrive, els.pExciterTone,
     els.pTransientAmount, els.pTransientMix,
     els.pLimiterCeiling, els.pLimiterRelease,
-    els.pParallelMix, els.pOutputGain,
+    els.pParallelMix, els.pOutputGain, els.pLowCutHz, els.pCompThreshold, els.pCompRatio,
     els.eqLow, els.eqLowMid, els.eqMid, els.eqHighMid, els.eqHigh,
     els.previewMode,
   ];
@@ -313,6 +323,13 @@ function buildPreviewChain(source) {
   let node = applyPreviewMode(source);
   const dryNode = node;
 
+  const lowCut = previewCtx.createBiquadFilter();
+  lowCut.type = 'highpass';
+  lowCut.frequency.value = Number(els.pLowCutHz?.value || 25);
+  lowCut.Q.value = 0.707;
+  node.connect(lowCut);
+  node = lowCut;
+
   if (els.modDynamicEq?.checked) {
     const eq = previewCtx.createBiquadFilter();
     eq.type = 'peaking';
@@ -325,8 +342,8 @@ function buildPreviewChain(source) {
 
   if (els.modMultibandGlue?.checked) {
     const comp = previewCtx.createDynamicsCompressor();
-    comp.threshold.value = -24 + (Number(els.pMultibandGlue?.value || 1) * -4);
-    comp.ratio.value = 1.4 + (Number(els.pMultibandGlue?.value || 1) * 0.8);
+    comp.threshold.value = Number(els.pCompThreshold?.value || -18);
+    comp.ratio.value = Number(els.pCompRatio?.value || 1.8);
     comp.attack.value = Number(els.pMultibandAttack?.value || 0.01);
     comp.release.value = Number(els.pMultibandRelease?.value || 0.2);
     node.connect(comp);
@@ -688,34 +705,8 @@ function renderAdvancedPlan(items) {
   });
 }
 
-async function uploadFile() {
-  const file = els.file.files[0];
-  if (!file) {
-    setText(els.statusText, 'Selecciona un archivo primero.');
-    return;
-  }
-
-  renderWave(file);
-  els.btn.disabled = true;
-  setText(els.statusText, 'Analizando track localmente...');
-  els.downloads?.classList.add('hidden');
-  if (els.progressBar) els.progressBar.style.width = '3%';
-
-  let localStats = null;
-  try {
-    localStats = await analyzeLocalAudio(file);
-    setMeter(els.meterDynamics, els.meterDynamicsValue, localStats.dynamicMeter, `${localStats.crestDb.toFixed(1)} dB crest`);
-    setMeter(els.meterStereo, els.meterStereoValue, localStats.stereoPercent, `${localStats.stereoPercent}% side energy`);
-    setMeter(els.meterTone, els.meterToneValue, localStats.toneMeter, 'Balance preliminar listo');
-  } catch (err) {
-    console.warn('No se pudo analizar localmente el audio', err);
-  }
-
-  const form = new FormData();
-  form.append('file', file);
-  form.append('mode', els.assistantMode.value);
-  const liveSettings = collectLiveSettings();
-  form.append('options_json', JSON.stringify({
+function buildCurrentOptionsPayload() {
+  return {
     target_lufs: Number(els.targetLufs.value),
     delivery_target: els.deliveryTarget?.value || 'streaming',
     intensity: Number(els.intensity.value),
@@ -746,6 +737,9 @@ async function uploadFile() {
       limiter_release_s: Number(els.pLimiterRelease?.value || 0.08),
       preview_parallel_mix: Number(els.pParallelMix?.value || 1.0),
       output_gain_db: Number(els.pOutputGain?.value || 0),
+      low_cut_hz: Number(els.pLowCutHz?.value || 25),
+      comp_threshold_db: Number(els.pCompThreshold?.value || -18.0),
+      comp_ratio: Number(els.pCompRatio?.value || 1.8),
       eq_low_db: Number(els.eqLow?.value || 0),
       eq_low_mid_db: Number(els.eqLowMid?.value || 0),
       eq_mid_db: Number(els.eqMid?.value || 0),
@@ -767,7 +761,36 @@ async function uploadFile() {
       smart_ms_sculptor: Boolean(els.fxMsSculptor?.checked),
       qa_preflight: Boolean(els.fxQaPreflight?.checked),
     },
-  }));
+  };
+}
+
+async function uploadFile() {
+  const file = els.file.files[0];
+  if (!file) {
+    setText(els.statusText, 'Selecciona un archivo primero.');
+    return;
+  }
+
+  renderWave(file);
+  els.btn.disabled = true;
+  setText(els.statusText, 'Analizando track localmente...');
+  els.downloads?.classList.add('hidden');
+  if (els.progressBar) els.progressBar.style.width = '3%';
+
+  let localStats = null;
+  try {
+    localStats = await analyzeLocalAudio(file);
+    setMeter(els.meterDynamics, els.meterDynamicsValue, localStats.dynamicMeter, `${localStats.crestDb.toFixed(1)} dB crest`);
+    setMeter(els.meterStereo, els.meterStereoValue, localStats.stereoPercent, `${localStats.stereoPercent}% side energy`);
+    setMeter(els.meterTone, els.meterToneValue, localStats.toneMeter, 'Balance preliminar listo');
+  } catch (err) {
+    console.warn('No se pudo analizar localmente el audio', err);
+  }
+
+  const form = new FormData();
+  form.append('file', file);
+  form.append('mode', els.assistantMode.value);
+  form.append('options_json', JSON.stringify(buildCurrentOptionsPayload()));
 
   try {
     setText(els.statusText, 'Subiendo al motor de mastering...');
@@ -871,6 +894,23 @@ async function cancelCurrentJob() {
   }
 }
 
+async function applyLiveChangesToJob() {
+  if (!currentJobId) {
+    setText(els.statusText, 'No hay render activo para aplicar cambios live.');
+    return;
+  }
+  try {
+    const form = new FormData();
+    form.append('options_json', JSON.stringify(buildCurrentOptionsPayload()));
+    const res = await fetch(`/api/jobs/${currentJobId}/live-options`, { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    setText(els.statusText, 'Cambios live enviados al motor.');
+  } catch (err) {
+    setText(els.statusText, `No se aplicaron cambios live: ${err.message}`);
+  }
+}
+
 els.btn?.addEventListener('click', uploadFile);
 els.livePlayBtn?.addEventListener('click', handleLivePlay);
 els.livePauseBtn?.addEventListener('click', pausePreview);
@@ -878,6 +918,7 @@ els.liveStopBtn?.addEventListener('click', stopPreview);
 els.pausePollBtn?.addEventListener('click', pausePolling);
 els.resumePollBtn?.addEventListener('click', resumePolling);
 els.cancelJobBtn?.addEventListener('click', cancelCurrentJob);
+els.applyLiveBtn?.addEventListener('click', applyLiveChangesToJob);
 els.livePreviewAudio?.addEventListener('play', async () => {
   if (previewCtx?.state === 'suspended') await previewCtx.resume();
   await restartPreview();

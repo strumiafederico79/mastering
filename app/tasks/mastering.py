@@ -71,6 +71,20 @@ def update_job(job_id: str, **fields):
     payload.update(fields)
     write_job(job_id, payload)
 
+def get_latest_options(job_id: str, fallback: dict | None) -> dict:
+    if isinstance(fallback, dict):
+        options = dict(fallback)
+    else:
+        options = {}
+    try:
+        payload = read_job(job_id)
+        live_options = payload.get("options", {})
+        if isinstance(live_options, dict):
+            options.update(live_options)
+    except FileNotFoundError:
+        pass
+    return options
+
 def build_preflight_report(analysis: dict, decision: dict, metrics: dict) -> dict:
     clipping_sections = analysis.get("clipping_sections", [])
     tp_est = float(analysis.get("true_peak_est_db", -3.0))
@@ -112,7 +126,8 @@ def run_mastering(job_id: str, input_filename: str, mode: str = "human_master", 
         analysis = analyze_audio(y, sr)
 
         update_job(job_id, progress=30, message="Tomando decisiones...", analysis=analysis, issues=analysis.get("issues", []))
-        decision = decide_mastering(analysis, mode=mode, options=options)
+        live_options = get_latest_options(job_id, options)
+        decision = decide_mastering(analysis, mode=mode, options=live_options)
 
         update_job(job_id, progress=45, message="Procesando cadena de mastering...", decision=decision)
         af_chain, actions = build_ffmpeg_filter_chain(decision)
