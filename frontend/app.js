@@ -259,11 +259,50 @@ function initLivePluginControls() {
   });
 }
 
-function setProcessControlsState({ running = false, paused = false }) {
-  if (els.pausePollBtn) els.pausePollBtn.disabled = !running || paused;
-  if (els.resumePollBtn) els.resumePollBtn.disabled = !running || !paused;
-  if (els.cancelJobBtn) els.cancelJobBtn.disabled = !running;
-  if (els.applyLiveBtn) els.applyLiveBtn.disabled = !running;
+function collectLiveSettings() {
+  return {
+    commit_mode: Boolean(els.liveCommitMode?.checked),
+    reset_requested: Boolean(els.liveReset?.checked),
+    preview_modules: {
+      dynamic_eq: Boolean(els.modDynamicEq?.checked),
+      multiband_glue: Boolean(els.modMultibandGlue?.checked),
+      stereo_imager: Boolean(els.modStereoImager?.checked),
+      harmonic_exciter: Boolean(els.modExciter?.checked),
+      transient_shaper: Boolean(els.modTransient?.checked),
+      true_peak_limiter: Boolean(els.modLimiter?.checked),
+      preview_eq: Boolean(els.modPreviewEq?.checked),
+      parallel_mix: Boolean(els.modParallelMix?.checked),
+    },
+    preview_mode: els.previewMode?.value || 'full_mix',
+    plugin_params: {
+      dynamic_eq_amount: Number(els.pDynamicEq?.value || 1.0),
+      dynamic_eq_freq_hz: Number(els.pDynamicEqFreq?.value || 280),
+      dynamic_eq_q: Number(els.pDynamicEqQ?.value || 1.0),
+      multiband_glue_strength: Number(els.pMultibandGlue?.value || 1.0),
+      multiband_attack_s: Number(els.pMultibandAttack?.value || 0.01),
+      multiband_release_s: Number(els.pMultibandRelease?.value || 0.2),
+      stereo_width_amount: Number(els.pStereoWidth?.value || 0.10),
+      stereo_pan: Number(els.pStereoPan?.value || 0),
+      exciter_drive: Number(els.pExciterDrive?.value || 8.0),
+      exciter_tone_hz: Number(els.pExciterTone?.value || 6000),
+      transient_support: Number(els.pTransientAmount?.value || 0.95),
+      transient_mix: Number(els.pTransientMix?.value || 1.0),
+      limiter_ceiling_dbtp: Number(els.pLimiterCeiling?.value || -1.0),
+      limiter_release_s: Number(els.pLimiterRelease?.value || 0.08),
+      preview_parallel_mix: Number(els.pParallelMix?.value || 1.0),
+      output_gain_db: Number(els.pOutputGain?.value || 0),
+      eq_low_db: Number(els.eqLow?.value || 0),
+      eq_low_mid_db: Number(els.eqLowMid?.value || 0),
+      eq_mid_db: Number(els.eqMid?.value || 0),
+      eq_high_mid_db: Number(els.eqHighMid?.value || 0),
+      eq_high_db: Number(els.eqHigh?.value || 0),
+    },
+  };
+}
+
+function refreshLiveSnapshot() {
+  if (!els.liveSnapshot) return;
+  els.liveSnapshot.textContent = JSON.stringify(collectLiveSettings(), null, 2);
 }
 
 function releasePreviewAudioUrl() {
@@ -713,8 +752,34 @@ function renderAdvancedPlan(items) {
   });
 }
 
-function buildCurrentOptionsPayload() {
-  return {
+async function uploadFile() {
+  const file = els.file.files[0];
+  if (!file) {
+    setText(els.statusText, 'Selecciona un archivo primero.');
+    return;
+  }
+
+  renderWave(file);
+  els.btn.disabled = true;
+  setText(els.statusText, 'Analizando track localmente...');
+  els.downloads?.classList.add('hidden');
+  if (els.progressBar) els.progressBar.style.width = '3%';
+
+  let localStats = null;
+  try {
+    localStats = await analyzeLocalAudio(file);
+    setMeter(els.meterDynamics, els.meterDynamicsValue, localStats.dynamicMeter, `${localStats.crestDb.toFixed(1)} dB crest`);
+    setMeter(els.meterStereo, els.meterStereoValue, localStats.stereoPercent, `${localStats.stereoPercent}% side energy`);
+    setMeter(els.meterTone, els.meterToneValue, localStats.toneMeter, 'Balance preliminar listo');
+  } catch (err) {
+    console.warn('No se pudo analizar localmente el audio', err);
+  }
+
+  const form = new FormData();
+  form.append('file', file);
+  form.append('mode', els.assistantMode.value);
+  const liveSettings = collectLiveSettings();
+  form.append('options_json', JSON.stringify({
     target_lufs: Number(els.targetLufs.value),
     delivery_target: els.deliveryTarget?.value || 'streaming',
     intensity: Number(els.intensity.value),
@@ -728,31 +793,12 @@ function buildCurrentOptionsPayload() {
       transient_shaper: els.modTransient.checked,
       true_peak_limiter: els.modLimiter.checked,
     },
-    plugin_params: {
-      dynamic_eq_amount: Number(els.pDynamicEq?.value || 1.0),
-      dynamic_eq_freq_hz: Number(els.pDynamicEqFreq?.value || 280),
-      dynamic_eq_q: Number(els.pDynamicEqQ?.value || 1.0),
-      multiband_glue_strength: Number(els.pMultibandGlue?.value || 1.0),
-      multiband_attack_s: Number(els.pMultibandAttack?.value || 0.01),
-      multiband_release_s: Number(els.pMultibandRelease?.value || 0.2),
-      stereo_width_amount: Number(els.pStereoWidth?.value || 0.10),
-      stereo_pan: Number(els.pStereoPan?.value || 0),
-      exciter_drive: Number(els.pExciterDrive?.value || 8.0),
-      exciter_tone_hz: Number(els.pExciterTone?.value || 6000),
-      transient_support: Number(els.pTransientAmount?.value || 0.95),
-      transient_mix: Number(els.pTransientMix?.value || 1.0),
-      limiter_ceiling_dbtp: Number(els.pLimiterCeiling?.value || -1.0),
-      limiter_release_s: Number(els.pLimiterRelease?.value || 0.08),
-      preview_parallel_mix: Number(els.pParallelMix?.value || 1.0),
-      output_gain_db: Number(els.pOutputGain?.value || 0),
-      low_cut_hz: Number(els.pLowCutHz?.value || 25),
-      comp_threshold_db: Number(els.pCompThreshold?.value || -18.0),
-      comp_ratio: Number(els.pCompRatio?.value || 1.8),
-      eq_low_db: Number(els.eqLow?.value || 0),
-      eq_low_mid_db: Number(els.eqLowMid?.value || 0),
-      eq_mid_db: Number(els.eqMid?.value || 0),
-      eq_high_mid_db: Number(els.eqHighMid?.value || 0),
-      eq_high_db: Number(els.eqHigh?.value || 0),
+    plugin_params: liveSettings.plugin_params,
+    live_preview: {
+      commit_mode: liveSettings.commit_mode,
+      reset_requested: liveSettings.reset_requested,
+      preview_mode: liveSettings.preview_mode,
+      preview_modules: liveSettings.preview_modules,
     },
     feature_flags: {
       ab_match: Boolean(els.fxAbMatch?.checked),
@@ -974,4 +1020,4 @@ els.livePreviewAudio?.addEventListener('ended', () => {
 initToolbar();
 initLivePluginControls();
 refreshPluginInfo();
-setProcessControlsState({ running: false, paused: false });
+refreshLiveSnapshot();
