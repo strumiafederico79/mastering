@@ -819,7 +819,8 @@ async function uploadFile() {
 }
 
 async function pollJob(jobId, localStats) {
-  for (let i = 0; i < 600; i++) {
+  let activePollCount = 0;
+  while (activePollCount < 600) {
     if (pollingPaused) {
       await new Promise(r => setTimeout(r, 350));
       continue;
@@ -862,6 +863,7 @@ async function pollJob(jobId, localStats) {
     if (data.status === 'error') {
       throw new Error(data.error || 'Error en mastering');
     }
+    activePollCount += 1;
     const pollEveryMs = Math.max(300, Number(els.pollIntervalMs?.value || 2000));
     await new Promise(r => setTimeout(r, pollEveryMs));
   }
