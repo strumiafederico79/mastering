@@ -4,6 +4,8 @@ let previewAudioObjectUrl = null;
 let previewElementSource = null;
 let previewGraphNodes = [];
 let previewRunning = false;
+let currentJobId = null;
+let pollingPaused = false;
 
 const els = {
   file: document.getElementById('file'),
@@ -84,6 +86,9 @@ const els = {
   liveStopBtn: document.getElementById('liveStopBtn'),
   livePreviewAudio: document.getElementById('livePreviewAudio'),
   btn: document.getElementById('masterBtn'),
+  pausePollBtn: document.getElementById('pausePollBtn'),
+  resumePollBtn: document.getElementById('resumePollBtn'),
+  cancelJobBtn: document.getElementById('cancelJobBtn'),
   profile: document.getElementById('profile'),
   state: document.getElementById('state'),
   pluginBackend: document.getElementById('pluginBackend'),
@@ -238,6 +243,12 @@ function initLivePluginControls() {
       if (previewRunning) restartPreview();
     });
   });
+}
+
+function setProcessControlsState({ running = false, paused = false }) {
+  if (els.pausePollBtn) els.pausePollBtn.disabled = !running || paused;
+  if (els.resumePollBtn) els.resumePollBtn.disabled = !running || !paused;
+  if (els.cancelJobBtn) els.cancelJobBtn.disabled = !running;
 }
 
 function releasePreviewAudioUrl() {
@@ -749,6 +760,11 @@ async function uploadFile() {
       limiter_release_s: Number(els.pLimiterRelease?.value || 0.08),
       preview_parallel_mix: Number(els.pParallelMix?.value || 1.0),
       output_gain_db: Number(els.pOutputGain?.value || 0),
+      eq_low_db: Number(els.eqLow?.value || 0),
+      eq_low_mid_db: Number(els.eqLowMid?.value || 0),
+      eq_mid_db: Number(els.eqMid?.value || 0),
+      eq_high_mid_db: Number(els.eqHighMid?.value || 0),
+      eq_high_db: Number(els.eqHigh?.value || 0),
     },
     feature_flags: {
       ab_match: Boolean(els.fxAbMatch?.checked),
@@ -773,11 +789,17 @@ async function uploadFile() {
     const res = await fetch('/api/jobs', { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    currentJobId = data.job_id;
+    pollingPaused = false;
+    setProcessControlsState({ running: true, paused: false });
     await pollJob(data.job_id, localStats);
   } catch (err) {
     console.error(err);
     setText(els.statusText, `Error al procesar: ${err.message}`);
   } finally {
+    currentJobId = null;
+    pollingPaused = false;
+    setProcessControlsState({ running: false, paused: false });
     stopPreview();
     releasePreviewAudioUrl();
     if (els.livePreviewAudio) {
@@ -790,6 +812,11 @@ async function uploadFile() {
 
 async function pollJob(jobId, localStats) {
   for (let i = 0; i < 600; i++) {
+    if (pollingPaused) {
+      await new Promise(r => setTimeout(r, 350));
+      continue;
+    }
+
     const res = await fetch(`/api/jobs/${jobId}`);
     const data = await res.json();
 
@@ -827,6 +854,10 @@ async function pollJob(jobId, localStats) {
       setText(els.statusText, 'Master listo. Descarga disponible.');
       return;
     }
+    if (data.status === 'cancelled') {
+      setText(els.statusText, data.message || 'Render cancelado.');
+      return;
+    }
     if (data.status === 'error') {
       throw new Error(data.error || 'Error en mastering');
     }
@@ -835,10 +866,39 @@ async function pollJob(jobId, localStats) {
   throw new Error('Timeout esperando el job.');
 }
 
+function pausePolling() {
+  if (!currentJobId) return;
+  pollingPaused = true;
+  setProcessControlsState({ running: true, paused: true });
+  setText(els.statusText, 'Monitoreo pausado. El render sigue ejecutándose.');
+}
+
+function resumePolling() {
+  if (!currentJobId) return;
+  pollingPaused = false;
+  setProcessControlsState({ running: true, paused: false });
+  setText(els.statusText, 'Monitoreo en vivo reactivado.');
+}
+
+async function cancelCurrentJob() {
+  if (!currentJobId) return;
+  try {
+    const res = await fetch(`/api/jobs/${currentJobId}/cancel`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+    setText(els.statusText, data.message || 'Cancelación enviada. Deteniendo proceso...');
+  } catch (err) {
+    setText(els.statusText, `No se pudo cancelar: ${err.message}`);
+  }
+}
+
 els.btn?.addEventListener('click', uploadFile);
 els.livePlayBtn?.addEventListener('click', handleLivePlay);
 els.livePauseBtn?.addEventListener('click', pausePreview);
 els.liveStopBtn?.addEventListener('click', stopPreview);
+els.pausePollBtn?.addEventListener('click', pausePolling);
+els.resumePollBtn?.addEventListener('click', resumePolling);
+els.cancelJobBtn?.addEventListener('click', cancelCurrentJob);
 els.livePreviewAudio?.addEventListener('play', async () => {
   if (previewCtx?.state === 'suspended') await previewCtx.resume();
   await restartPreview();
@@ -853,3 +913,4 @@ els.livePreviewAudio?.addEventListener('ended', () => {
 initToolbar();
 initLivePluginControls();
 refreshPluginInfo();
+setProcessControlsState({ running: false, paused: false });
