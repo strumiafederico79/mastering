@@ -111,7 +111,7 @@ def cancel_job(job_id: str):
 def download_job_output(
     job_id: str,
     fmt: str = Query("wav", pattern="^(wav|mp3)$"),
-    variant: str = Query("master", pattern="^(master|acapella|instrumental|drums|bass|other)$"),
+    variant: str = Query("master", pattern="^(master)$"),
 ):
     try:
         payload = read_job(job_id)
@@ -119,24 +119,7 @@ def download_job_output(
         raise HTTPException(status_code=404, detail="Job no encontrado.") from exc
     if payload.get("status") != "done":
         raise HTTPException(status_code=409, detail="El job aún no terminó.")
-    if variant == "master":
-        path_key = "wav_path" if fmt == "wav" else "mp3_path"
-    elif variant == "acapella":
-        path_key = "acapella_wav_path" if fmt == "wav" else "acapella_mp3_path"
-    elif variant == "drums":
-        if fmt != "mp3":
-            raise HTTPException(status_code=400, detail="La variante drums solo está disponible en mp3.")
-        path_key = "drums_mp3_path"
-    elif variant == "bass":
-        if fmt != "mp3":
-            raise HTTPException(status_code=400, detail="La variante bass solo está disponible en mp3.")
-        path_key = "bass_mp3_path"
-    elif variant == "other":
-        if fmt != "mp3":
-            raise HTTPException(status_code=400, detail="La variante other solo está disponible en mp3.")
-        path_key = "other_mp3_path"
-    else:
-        path_key = "instrumental_wav_path" if fmt == "wav" else "instrumental_mp3_path"
+    path_key = "wav_path" if fmt == "wav" else "mp3_path"
     file_path = payload.get("outputs", {}).get(path_key)
     if not file_path:
         raise HTTPException(status_code=404, detail="Salida no disponible.")

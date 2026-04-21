@@ -13,7 +13,6 @@ const els = {
   assistantMode: document.getElementById('assistantMode'),
   genrePreset: document.getElementById('genrePreset'),
   targetLufs: document.getElementById('targetLufs'),
-  stemMode: document.getElementById('stemMode'),
   deliveryTarget: document.getElementById('deliveryTarget'),
   intensity: document.getElementById('intensity'),
   modDynamicEq: document.getElementById('modDynamicEq'),
@@ -28,7 +27,6 @@ const els = {
   liveReset: document.getElementById('liveReset'),
   fxAbMatch: document.getElementById('fxAbMatch'),
   fxSectionTp: document.getElementById('fxSectionTp'),
-  fxAiStem: document.getElementById('fxAiStem'),
   fxHumanNotes: document.getElementById('fxHumanNotes'),
   fxDeesser: document.getElementById('fxDeesser'),
   fxPhaseFix: document.getElementById('fxPhaseFix'),
@@ -83,6 +81,7 @@ const els = {
   eqHigh: document.getElementById('eqHigh'),
   eqHighVal: document.getElementById('eqHighVal'),
   previewMode: document.getElementById('previewMode'),
+  pollIntervalMs: document.getElementById('pollIntervalMs'),
   livePlayBtn: document.getElementById('livePlayBtn'),
   livePauseBtn: document.getElementById('livePauseBtn'),
   liveStopBtn: document.getElementById('liveStopBtn'),
@@ -111,13 +110,6 @@ const els = {
   downloads: document.getElementById('downloads'),
   downloadWav: document.getElementById('downloadWav'),
   downloadMp3: document.getElementById('downloadMp3'),
-  downloadAcapellaWav: document.getElementById('downloadAcapellaWav'),
-  downloadAcapellaMp3: document.getElementById('downloadAcapellaMp3'),
-  downloadInstrumentalWav: document.getElementById('downloadInstrumentalWav'),
-  downloadInstrumentalMp3: document.getElementById('downloadInstrumentalMp3'),
-  downloadDrumsMp3: document.getElementById('downloadDrumsMp3'),
-  downloadBassMp3: document.getElementById('downloadBassMp3'),
-  downloadOtherMp3: document.getElementById('downloadOtherMp3'),
   meterDynamics: document.getElementById('meterDynamics'),
   meterStereo: document.getElementById('meterStereo'),
   meterTone: document.getElementById('meterTone'),
@@ -250,50 +242,10 @@ function initLivePluginControls() {
   });
 }
 
-function collectLiveSettings() {
-  return {
-    commit_mode: Boolean(els.liveCommitMode?.checked),
-    reset_requested: Boolean(els.liveReset?.checked),
-    preview_modules: {
-      dynamic_eq: Boolean(els.modDynamicEq?.checked),
-      multiband_glue: Boolean(els.modMultibandGlue?.checked),
-      stereo_imager: Boolean(els.modStereoImager?.checked),
-      harmonic_exciter: Boolean(els.modExciter?.checked),
-      transient_shaper: Boolean(els.modTransient?.checked),
-      true_peak_limiter: Boolean(els.modLimiter?.checked),
-      preview_eq: Boolean(els.modPreviewEq?.checked),
-      parallel_mix: Boolean(els.modParallelMix?.checked),
-    },
-    preview_mode: els.previewMode?.value || 'full_mix',
-    plugin_params: {
-      dynamic_eq_amount: Number(els.pDynamicEq?.value || 1.0),
-      dynamic_eq_freq_hz: Number(els.pDynamicEqFreq?.value || 280),
-      dynamic_eq_q: Number(els.pDynamicEqQ?.value || 1.0),
-      multiband_glue_strength: Number(els.pMultibandGlue?.value || 1.0),
-      multiband_attack_s: Number(els.pMultibandAttack?.value || 0.01),
-      multiband_release_s: Number(els.pMultibandRelease?.value || 0.2),
-      stereo_width_amount: Number(els.pStereoWidth?.value || 0.10),
-      stereo_pan: Number(els.pStereoPan?.value || 0),
-      exciter_drive: Number(els.pExciterDrive?.value || 8.0),
-      exciter_tone_hz: Number(els.pExciterTone?.value || 6000),
-      transient_support: Number(els.pTransientAmount?.value || 0.95),
-      transient_mix: Number(els.pTransientMix?.value || 1.0),
-      limiter_ceiling_dbtp: Number(els.pLimiterCeiling?.value || -1.0),
-      limiter_release_s: Number(els.pLimiterRelease?.value || 0.08),
-      preview_parallel_mix: Number(els.pParallelMix?.value || 1.0),
-      output_gain_db: Number(els.pOutputGain?.value || 0),
-      eq_low_db: Number(els.eqLow?.value || 0),
-      eq_low_mid_db: Number(els.eqLowMid?.value || 0),
-      eq_mid_db: Number(els.eqMid?.value || 0),
-      eq_high_mid_db: Number(els.eqHighMid?.value || 0),
-      eq_high_db: Number(els.eqHigh?.value || 0),
-    },
-  };
-}
-
-function refreshLiveSnapshot() {
-  if (!els.liveSnapshot) return;
-  els.liveSnapshot.textContent = JSON.stringify(collectLiveSettings(), null, 2);
+function setProcessControlsState({ running = false, paused = false }) {
+  if (els.pausePollBtn) els.pausePollBtn.disabled = !running || paused;
+  if (els.resumePollBtn) els.resumePollBtn.disabled = !running || !paused;
+  if (els.cancelJobBtn) els.cancelJobBtn.disabled = !running;
 }
 
 function releasePreviewAudioUrl() {
@@ -351,11 +303,6 @@ function applyPreviewMode(node) {
     connectMix(1, 0, 0.5);
     connectMix(0, 1, 0.5);
     connectMix(1, 1, 0.5);
-  } else if (mode === 'instrumental_only') {
-    connectMix(0, 0, 1.0);
-    connectMix(1, 0, -1.0);
-    connectMix(0, 1, -1.0);
-    connectMix(1, 1, 1.0);
   }
 
   previewGraphNodes.push(splitter, merger);
@@ -692,7 +639,6 @@ async function analyzeLocalAudio(file) {
 function buildAdvancedPlan(data, localStats) {
   const genre = els.genrePreset.value;
   const targetLufs = Number(els.targetLufs.value);
-  const stemMode = els.stemMode?.value || 'full_mix';
   const deliveryTarget = els.deliveryTarget?.value || 'streaming';
   const intensity = Number(els.intensity.value);
   const mode = els.assistantMode.value;
@@ -701,11 +647,6 @@ function buildAdvancedPlan(data, localStats) {
   const plan = [];
   plan.push(`Human adaptive mode ${mode}/${genre}: decisión guiada por contexto musical real.`);
   plan.push(`Target final: ${targetLufs} LUFS con limitación transparente y control true-peak preventivo.`);
-  if (stemMode !== 'full_mix') {
-    plan.push(stemMode === 'vocals_only'
-      ? 'Stem mode activo: priorizar voz centrada para referencia vocal.'
-      : 'Stem mode activo: atenuar centro para versión instrumental rápida.');
-  }
   if (deliveryTarget === 'cd_master') {
     plan.push('Entrega CD: cadena extra de glue humano + loudness competitivo estilo disco físico.');
   }
@@ -776,7 +717,6 @@ async function uploadFile() {
   const liveSettings = collectLiveSettings();
   form.append('options_json', JSON.stringify({
     target_lufs: Number(els.targetLufs.value),
-    stem_mode: els.stemMode?.value || 'full_mix',
     delivery_target: els.deliveryTarget?.value || 'streaming',
     intensity: Number(els.intensity.value),
     stereo_amount: Math.min(0.6, Math.max(0, Number(els.intensity.value) / 200)),
@@ -789,17 +729,32 @@ async function uploadFile() {
       transient_shaper: els.modTransient.checked,
       true_peak_limiter: els.modLimiter.checked,
     },
-    plugin_params: liveSettings.plugin_params,
-    live_preview: {
-      commit_mode: liveSettings.commit_mode,
-      reset_requested: liveSettings.reset_requested,
-      preview_mode: liveSettings.preview_mode,
-      preview_modules: liveSettings.preview_modules,
+    plugin_params: {
+      dynamic_eq_amount: Number(els.pDynamicEq?.value || 1.0),
+      dynamic_eq_freq_hz: Number(els.pDynamicEqFreq?.value || 280),
+      dynamic_eq_q: Number(els.pDynamicEqQ?.value || 1.0),
+      multiband_glue_strength: Number(els.pMultibandGlue?.value || 1.0),
+      multiband_attack_s: Number(els.pMultibandAttack?.value || 0.01),
+      multiband_release_s: Number(els.pMultibandRelease?.value || 0.2),
+      stereo_width_amount: Number(els.pStereoWidth?.value || 0.10),
+      stereo_pan: Number(els.pStereoPan?.value || 0),
+      exciter_drive: Number(els.pExciterDrive?.value || 8.0),
+      exciter_tone_hz: Number(els.pExciterTone?.value || 6000),
+      transient_support: Number(els.pTransientAmount?.value || 0.95),
+      transient_mix: Number(els.pTransientMix?.value || 1.0),
+      limiter_ceiling_dbtp: Number(els.pLimiterCeiling?.value || -1.0),
+      limiter_release_s: Number(els.pLimiterRelease?.value || 0.08),
+      preview_parallel_mix: Number(els.pParallelMix?.value || 1.0),
+      output_gain_db: Number(els.pOutputGain?.value || 0),
+      eq_low_db: Number(els.eqLow?.value || 0),
+      eq_low_mid_db: Number(els.eqLowMid?.value || 0),
+      eq_mid_db: Number(els.eqMid?.value || 0),
+      eq_high_mid_db: Number(els.eqHighMid?.value || 0),
+      eq_high_db: Number(els.eqHigh?.value || 0),
     },
     feature_flags: {
       ab_match: Boolean(els.fxAbMatch?.checked),
       section_true_peak_guard: Boolean(els.fxSectionTp?.checked),
-      ai_stem_mastering: Boolean(els.fxAiStem?.checked),
       advanced_human_notes: Boolean(els.fxHumanNotes?.checked),
       dynamic_deesser: Boolean(els.fxDeesser?.checked),
       phase_mono_fix: Boolean(els.fxPhaseFix?.checked),
@@ -873,13 +828,6 @@ async function pollJob(jobId, localStats) {
     if (data.status === 'done') {
       if (els.downloadWav) els.downloadWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=master`;
       if (els.downloadMp3) els.downloadMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=master`;
-      if (els.downloadAcapellaWav) els.downloadAcapellaWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=acapella`;
-      if (els.downloadAcapellaMp3) els.downloadAcapellaMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=acapella`;
-      if (els.downloadInstrumentalWav) els.downloadInstrumentalWav.href = `/api/jobs/${jobId}/download?fmt=wav&variant=instrumental`;
-      if (els.downloadInstrumentalMp3) els.downloadInstrumentalMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=instrumental`;
-      if (els.downloadDrumsMp3) els.downloadDrumsMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=drums`;
-      if (els.downloadBassMp3) els.downloadBassMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=bass`;
-      if (els.downloadOtherMp3) els.downloadOtherMp3.href = `/api/jobs/${jobId}/download?fmt=mp3&variant=other`;
       els.downloads?.classList.remove('hidden');
       setText(els.statusText, 'Master listo. Descarga disponible.');
       return;
@@ -891,7 +839,8 @@ async function pollJob(jobId, localStats) {
     if (data.status === 'error') {
       throw new Error(data.error || 'Error en mastering');
     }
-    await new Promise(r => setTimeout(r, 2000));
+    const pollEveryMs = Math.max(300, Number(els.pollIntervalMs?.value || 2000));
+    await new Promise(r => setTimeout(r, pollEveryMs));
   }
   throw new Error('Timeout esperando el job.');
 }
@@ -943,4 +892,4 @@ els.livePreviewAudio?.addEventListener('ended', () => {
 initToolbar();
 initLivePluginControls();
 refreshPluginInfo();
-refreshLiveSnapshot();
+setProcessControlsState({ running: false, paused: false });
