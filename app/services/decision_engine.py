@@ -225,6 +225,11 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         exciter_drive = float(plugin_params.get("exciter_drive", 8.0))
         transient_support = float(plugin_params.get("transient_support", 0.95))
         limiter_ceiling = float(plugin_params.get("limiter_ceiling_dbtp", decision["limiter_ceiling_dbtp"]))
+        eq_low = float(plugin_params.get("eq_low_db", 0.0))
+        eq_low_mid = float(plugin_params.get("eq_low_mid_db", 0.0))
+        eq_mid = float(plugin_params.get("eq_mid_db", 0.0))
+        eq_high_mid = float(plugin_params.get("eq_high_mid_db", 0.0))
+        eq_high = float(plugin_params.get("eq_high_db", 0.0))
 
         decision["mud_cut_db"] = max(0.0, decision["mud_cut_db"] * max(0.0, min(2.0, dynamic_eq_amount)))
         decision["multiband_glue_strength"] = max(0.0, min(2.0, glue_strength))
@@ -232,6 +237,13 @@ def decide_mastering(analysis: dict, mode: str = "human_master", options: dict |
         decision["exciter_drive"] = max(1.0, min(12.0, exciter_drive))
         decision["transient_support"] = max(0.85, min(0.99, transient_support))
         decision["limiter_ceiling_dbtp"] = max(-2.0, min(-0.1, limiter_ceiling))
+        decision["manual_eq"] = {
+            "low_80hz_db": max(-12.0, min(12.0, eq_low)),
+            "low_mid_250hz_db": max(-12.0, min(12.0, eq_low_mid)),
+            "mid_1khz_db": max(-12.0, min(12.0, eq_mid)),
+            "high_mid_4khz_db": max(-12.0, min(12.0, eq_high_mid)),
+            "high_10khz_db": max(-12.0, min(12.0, eq_high)),
+        }
 
     features = options.get("feature_flags", {})
     if not isinstance(features, dict):
